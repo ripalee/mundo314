@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLeague } from '../../context/LeagueContext';
-import { Menu, X, Bell, Trophy, User, LogIn, LogOut, Cloud, CloudOff, RefreshCw } from 'lucide-react';
+import { Menu, X, Bell, Trophy, User, LogIn, LogOut } from 'lucide-react';
 
 export const Header: React.FC = () => {
   const { 
@@ -17,9 +17,7 @@ export const Header: React.FC = () => {
     logout,
     setIsAuthModalOpen,
     globalYear,
-    setGlobalYear,
-    cloudSyncStatus,
-    manualCloudSync
+    setGlobalYear
   } = useLeague();
 
   return (
@@ -67,11 +65,10 @@ export const Header: React.FC = () => {
               <button
                 type="button"
                 onClick={logout}
-                className="ml-0.5 p-1 hover:bg-[#153e26] text-gray-400 hover:text-red-400 rounded-full transition-colors flex items-center space-x-1"
+                className="ml-0.5 p-1 hover:bg-[#153e26] text-gray-400 hover:text-red-400 rounded-full transition-colors flex items-center justify-center"
                 title="Cerrar sesión"
               >
                 <LogOut className="w-3.5 h-3.5" />
-                <span className="text-[10px] font-bold hidden sm:inline">Cerrar Sesión</span>
               </button>
             </div>
           ) : (
@@ -83,45 +80,6 @@ export const Header: React.FC = () => {
             >
               <LogIn className="w-3.5 h-3.5" />
               <span>Ingresar</span>
-            </button>
-          )}
-
-          {/* Indicador de Nube Global para Editor */}
-          {userRole === 'editor' && (
-            <button
-              type="button"
-              onClick={() => manualCloudSync()}
-              className={`flex items-center space-x-1 px-2 py-0.5 rounded-full border text-[10px] font-bold transition-all shadow-xs ${
-                cloudSyncStatus === 'connected'
-                  ? 'bg-[#0f2c1d] border-[#22c55e]/50 text-[#22c55e]'
-                  : cloudSyncStatus === 'syncing'
-                  ? 'bg-[#1a2d1d] border-amber-500/40 text-amber-300'
-                  : 'bg-[#2d1212] border-red-500/40 text-red-300'
-              }`}
-              title={
-                cloudSyncStatus === 'connected'
-                  ? 'Nube D1 Conectada: cambios sincronizados globalmente'
-                  : cloudSyncStatus === 'syncing'
-                  ? 'Sincronizando con la nube...'
-                  : 'Nube Desconectada: falta vincular la base de datos D1 en Cloudflare (Settings > Bindings).'
-              }
-            >
-              {cloudSyncStatus === 'connected' ? (
-                <>
-                  <Cloud className="w-3.5 h-3.5 text-[#22c55e]" />
-                  <span className="hidden sm:inline">Nube OK</span>
-                </>
-              ) : cloudSyncStatus === 'syncing' ? (
-                <>
-                  <RefreshCw className="w-3.5 h-3.5 text-amber-400 animate-spin" />
-                  <span className="hidden sm:inline">Sincronizando</span>
-                </>
-              ) : (
-                <>
-                  <CloudOff className="w-3.5 h-3.5 text-red-400" />
-                  <span className="hidden sm:inline">Nube Desconectada</span>
-                </>
-              )}
             </button>
           )}
 
