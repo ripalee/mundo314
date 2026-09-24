@@ -48,8 +48,8 @@ export const MatchRow: React.FC<MatchRowProps> = ({ match }) => {
               {match.status === 'halftime' ? 'ET' : `${match.currentMinute || 20}'`}
             </span>
           ) : isFinished ? (
-            <span className="text-[11px] text-[#9fc7af] font-bold font-mono">
-              90 min
+            <span className="text-[10px] sm:text-[11px] text-[#9fc7af] font-bold font-mono tracking-tight">
+              Finalizado
             </span>
           ) : (
             <span className="text-xs text-gray-200 font-bold font-mono">

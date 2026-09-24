@@ -271,12 +271,18 @@ export const MatchDetailView: React.FC = () => {
                 <span className="text-white drop-shadow-sm">{match.homeScore ?? 0}</span>
               )}
 
-              {/* Minuto / Hora: 90 min si terminado, match.time || '00:00' si programado */}
-              <span className="text-xs font-black text-[#ef4444] px-2.5 py-1 bg-[#07150e] rounded-lg border border-red-950/60 font-mono shadow-xs">
-                {match.status === 'live' 
-                  ? `${match.currentMinute || 23}'` 
+              {/* Minuto / Hora / Finalizado */}
+              <span className={`text-xs font-black px-2.5 py-1 rounded-lg border font-mono shadow-xs ${
+                match.status === 'live' || match.status === 'halftime'
+                  ? 'text-[#ef4444] bg-[#07150e] border-red-950/60 animate-pulse'
+                  : match.status === 'finished'
+                  ? 'text-[#9fc7af] bg-[#07150e] border-[#1f5434]/60'
+                  : 'text-gray-200 bg-[#07150e] border-[#1f5434]/60'
+              }`}>
+                {match.status === 'live' || match.status === 'halftime'
+                  ? (match.status === 'halftime' ? 'ET' : `${match.currentMinute || 23}'`) 
                   : match.status === 'finished' 
-                  ? '90 min' 
+                  ? 'Finalizado' 
                   : (match.time || '00:00')}
               </span>
 

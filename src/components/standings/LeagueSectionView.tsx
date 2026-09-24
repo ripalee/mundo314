@@ -475,7 +475,7 @@ export const LeagueSectionView: React.FC = () => {
                           {/* Columna Izquierda: Estado / Minutos */}
                           <div className="w-14 shrink-0 text-center flex flex-col justify-center px-1 text-xs">
                             {match.status === 'finished' ? (
-                              <span className="text-[11px] text-[#9fc7af] font-bold font-mono">90 min</span>
+                              <span className="text-[10px] text-[#9fc7af] font-bold font-mono tracking-tight">Finalizado</span>
                             ) : isLive ? (
                               <span className="text-xs font-black text-[#ef4444] animate-pulse">
                                 {match.status === 'halftime' ? 'ET' : `${match.currentMinute || 20}'`}
