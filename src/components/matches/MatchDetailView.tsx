@@ -180,64 +180,64 @@ export const MatchDetailView: React.FC = () => {
       </div>
 
       {/* Marcador Principal con Escudos Grandes sin caja de fondo */}
-      <div className="bg-[#0e271a] border border-[#1f5434]/50 rounded-3xl p-5 sm:p-6 text-center shadow-lg">
-        {/* Cabecera limpia con solo Año general y fecha solo mes y día */}
-        <div className="text-[11px] text-[#8eb89c] mb-4 font-bold uppercase tracking-wider flex items-center justify-center space-x-2 flex-wrap">
-          <span>{currentLeague.name}</span>
+      <div className="bg-[#0e271a] border border-[#1f5434]/50 rounded-2xl sm:rounded-3xl p-3 sm:p-6 text-center shadow-lg w-full max-w-full overflow-hidden">
+        {/* Cabecera limpia: Liga • Año • Fecha */}
+        <div className="text-[11px] sm:text-xs text-[#8eb89c] mb-3 sm:mb-4 font-bold uppercase tracking-wider flex items-center justify-center space-x-2 flex-wrap">
+          <span className="truncate max-w-[200px]">{currentLeague.name}</span>
           <span>•</span>
           <span className="text-amber-300 font-mono font-black">{globalYear}</span>
           <span>•</span>
           <span>Fecha {match.round}</span>
-          <span>•</span>
-          {userRole === 'editor' ? (
-            <div className="inline-flex items-center space-x-1.5 bg-[#081b11] px-2 py-0.5 rounded-lg border border-[#22c55e]/40">
-              <Calendar className="w-3 h-3 text-[#22c55e]" />
-              <input
-                type="text"
-                value={formatDayMonth(match.date) || ''}
-                onChange={(e) => handleUpdateDate(e.target.value)}
-                placeholder="DD/MM"
-                className="w-14 bg-transparent text-center text-amber-300 font-mono font-bold text-xs focus:outline-none focus:text-white"
-                title="Editar fecha del partido (ejemplo: 19/09)"
-              />
-            </div>
-          ) : (
-            match.date && (
-              <span className="text-gray-300 font-mono font-normal">
-                {formatDayMonth(match.date)}
-              </span>
-            )
-          )}
         </div>
 
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 sm:gap-6 max-w-2xl mx-auto">
+        {/* Fila Principal de Equipos y Marcador (3 columnas equilibradas) */}
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1 sm:gap-6 max-w-xl mx-auto w-full">
           {/* Local: Escudo transparente y clickeable para abrir ficha */}
           <div 
             onClick={() => homeTeam && openTeamProfile(homeTeam)}
-            className="flex flex-col items-center cursor-pointer group"
+            className="flex flex-col items-center cursor-pointer group min-w-0"
             title={`Ver ficha completa de ${homeTeam?.name}`}
           >
-            <TeamShield 
-              team={homeTeam} 
-              name={homeTeam?.name} 
-              shield={homeTeam?.shield}
-              size={84} 
-            />
-            <span className="font-black text-xs sm:text-sm text-white group-hover:text-[#22c55e] transition-colors mt-3 uppercase tracking-wide text-center leading-tight max-w-[150px]">
+            <div className="w-14 h-14 sm:w-20 sm:h-20 flex items-center justify-center">
+              <TeamShield 
+                team={homeTeam} 
+                name={homeTeam?.name} 
+                shield={homeTeam?.shield}
+                size={70}
+                className="w-14 h-14 sm:w-20 sm:h-20"
+              />
+            </div>
+            <span className="font-black text-[11px] sm:text-sm text-white group-hover:text-[#22c55e] transition-colors mt-2 uppercase tracking-wide text-center leading-tight max-w-[95px] sm:max-w-[150px] line-clamp-2">
               {homeTeam?.name}
             </span>
           </div>
 
           {/* Marcador Central estilo Promiedos */}
-          <div className="flex flex-col items-center justify-center px-2 sm:px-4">
-            {/* Fecha arriba del marcador: ej. 24/09 */}
-            <div className="text-xs sm:text-sm font-bold text-gray-200 tracking-wider mb-1 font-mono">
-              {formatDayMonth(match.date) || '24/09'}
-            </div>
+          <div className="flex flex-col items-center justify-center px-1 sm:px-4 shrink-0 min-w-[80px] sm:min-w-[100px]">
+            {/* Fecha arriba del marcador: ej. 24/09 (editable si es editor) */}
+            {userRole === 'editor' ? (
+              <div className="inline-flex items-center space-x-1 mb-1 bg-[#050f09] px-2 py-0.5 rounded-lg border border-[#1f5434]/70 hover:border-[#22c55e] focus-within:border-[#22c55e] transition-colors">
+                <Calendar className="w-3 h-3 text-[#22c55e]" />
+                <input
+                  type="text"
+                  value={formatDayMonth(match.date) || ''}
+                  onChange={(e) => handleUpdateDate(e.target.value)}
+                  placeholder="DD/MM"
+                  className="w-12 bg-transparent text-center text-xs font-bold text-amber-300 font-mono outline-none focus:text-white"
+                  title="Editar fecha (DD/MM)"
+                />
+              </div>
+            ) : (
+              (match.date || true) && (
+                <div className="text-xs sm:text-sm font-bold text-gray-200 tracking-wider mb-1 font-mono">
+                  {formatDayMonth(match.date) || '24/09'}
+                </div>
+              )
+            )}
 
             {/* Marcador: [Goles Local] - [Goles Visitante] */}
-            <div className="flex items-center justify-center space-x-2 text-3xl sm:text-4xl font-black font-mono text-white">
-              {/* Goles Local: en modo editor se edita directamente en el 0 sin fondo */}
+            <div className="flex items-center justify-center space-x-1.5 sm:space-x-2 text-3xl sm:text-4xl font-black font-mono text-white select-none">
+              {/* Goles Local */}
               {userRole === 'editor' ? (
                 <input
                   type="text"
@@ -270,7 +270,7 @@ export const MatchDetailView: React.FC = () => {
                       (e.target as HTMLInputElement).blur();
                     }
                   }}
-                  className="w-10 sm:w-12 text-center text-3xl sm:text-4xl font-black font-mono text-white bg-transparent border-none outline-none focus:outline-none focus:ring-0 cursor-pointer focus:cursor-text hover:text-[#22c55e] focus:text-[#22c55e] transition-colors p-0 m-0"
+                  className="w-9 sm:w-12 text-center text-3xl sm:text-4xl font-black font-mono text-white bg-transparent border-none outline-none focus:outline-none focus:ring-0 cursor-pointer focus:cursor-text hover:text-[#22c55e] focus:text-[#22c55e] transition-colors p-0 m-0"
                   title={`Editar goles de ${homeTeam?.name || 'Local'}`}
                 />
               ) : (
@@ -280,7 +280,7 @@ export const MatchDetailView: React.FC = () => {
               {/* Guión separador */}
               <span className="text-white font-mono select-none px-0.5">-</span>
 
-              {/* Goles Visitante: en modo editor se edita directamente en el 0 sin fondo */}
+              {/* Goles Visitante */}
               {userRole === 'editor' ? (
                 <input
                   type="text"
@@ -313,7 +313,7 @@ export const MatchDetailView: React.FC = () => {
                       (e.target as HTMLInputElement).blur();
                     }
                   }}
-                  className="w-10 sm:w-12 text-center text-3xl sm:text-4xl font-black font-mono text-white bg-transparent border-none outline-none focus:outline-none focus:ring-0 cursor-pointer focus:cursor-text hover:text-[#22c55e] focus:text-[#22c55e] transition-colors p-0 m-0"
+                  className="w-9 sm:w-12 text-center text-3xl sm:text-4xl font-black font-mono text-white bg-transparent border-none outline-none focus:outline-none focus:ring-0 cursor-pointer focus:cursor-text hover:text-[#22c55e] focus:text-[#22c55e] transition-colors p-0 m-0"
                   title={`Editar goles de ${awayTeam?.name || 'Visitante'}`}
                 />
               ) : (
@@ -334,91 +334,9 @@ export const MatchDetailView: React.FC = () => {
               )}
             </div>
 
-            {/* Selector de estado Terminado / Programado para editores */}
-            {userRole === 'editor' && (
-              <div className="mt-3 flex items-center bg-[#07160e] p-1 rounded-xl border border-[#1f5434]/60 shadow-inner">
-                <button
-                  type="button"
-                  onClick={handleSetScheduled}
-                  className={`px-3 py-1 text-[11px] rounded-lg font-bold transition-all flex items-center space-x-1.5 ${
-                    match.status === 'scheduled'
-                      ? 'bg-[#1b4d30] text-amber-300 border border-amber-500/40 shadow-xs font-black'
-                      : 'text-gray-400 hover:text-gray-200 hover:bg-[#122e1e]'
-                  }`}
-                  title="Marcar como programado"
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${match.status === 'scheduled' ? 'bg-amber-400 animate-pulse' : 'bg-gray-500'}`}></span>
-                  <span>Programado</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSetFinished}
-                  className={`px-3 py-1 text-[11px] rounded-lg font-bold transition-all flex items-center space-x-1.5 ${
-                    match.status === 'finished'
-                      ? 'bg-[#1b4d30] text-[#22c55e] border border-[#22c55e]/40 shadow-xs font-black'
-                      : 'text-gray-400 hover:text-gray-200 hover:bg-[#122e1e]'
-                  }`}
-                  title="Marcar como terminado y actualiza posiciones"
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${match.status === 'finished' ? 'bg-[#22c55e]' : 'bg-gray-500'}`}></span>
-                  <span>Terminado</span>
-                </button>
-              </div>
-            )}
-
-            {/* Si está en Programado y es Editor: Programar Fecha y Hora directamente */}
-            {userRole === 'editor' && match.status === 'scheduled' && (
-              <div className="mt-2.5 flex items-center justify-center space-x-2.5 bg-[#07160e] px-3 py-1.5 rounded-xl border border-[#1f5434]/60 shadow-inner">
-                {/* Campo Fecha */}
-                <div className="flex items-center space-x-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-[#22c55e]" />
-                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Fecha:</span>
-                  <input
-                    type="text"
-                    value={formatDayMonth(match.date) || ''}
-                    onChange={(e) => handleUpdateDate(e.target.value)}
-                    placeholder="DD/MM"
-                    className="w-14 bg-black/40 border border-[#1f5434] rounded-lg px-1.5 py-0.5 text-center text-amber-300 font-mono text-xs font-bold focus:border-[#22c55e] focus:outline-none transition-colors"
-                    title="Fecha del partido (ejemplo: 19/09)"
-                  />
-                </div>
-
-                <span className="text-[#1f5434] font-bold">•</span>
-
-                {/* Campo Hora */}
-                <div className="flex items-center space-x-1.5">
-                  <Clock className="w-3.5 h-3.5 text-[#22c55e]" />
-                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Hora:</span>
-                  <input
-                    type="text"
-                    value={match.time || ''}
-                    onChange={(e) => handleUpdateTime(e.target.value)}
-                    placeholder="00:00"
-                    className="w-14 bg-black/40 border border-[#1f5434] rounded-lg px-1.5 py-0.5 text-center text-white font-mono text-xs font-bold focus:border-[#22c55e] focus:outline-none transition-colors"
-                    title="Hora del partido (ejemplo: 15:30 o 00:00)"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Si está en Programado y es Público: mostrar fecha y hora programada */}
-            {userRole !== 'editor' && match.status === 'scheduled' && (
-              <div className="text-[11px] text-gray-300 font-medium mt-1 flex items-center justify-center space-x-1.5">
-                <Calendar className="w-3 h-3 text-[#22c55e]" />
-                <span>{formatDayMonth(match.date)}</span>
-                {match.time && (
-                  <>
-                    <span>•</span>
-                    <Clock className="w-3 h-3 text-[#22c55e]" />
-                    <span>{match.time} hs</span>
-                  </>
-                )}
-              </div>
-            )}
-
             {match.isClassic && (
-              <span className="mt-2 text-[10px] font-black px-2 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded-lg uppercase tracking-wider shadow-xs">
-                Clásico Rival
+              <span className="mt-2 text-[9px] sm:text-[10px] font-black px-2 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded-lg uppercase tracking-wider shadow-xs">
+                Clásico
               </span>
             )}
           </div>
@@ -426,20 +344,74 @@ export const MatchDetailView: React.FC = () => {
           {/* Visitante: Escudo transparente y clickeable para abrir ficha */}
           <div 
             onClick={() => awayTeam && openTeamProfile(awayTeam)}
-            className="flex flex-col items-center cursor-pointer group"
+            className="flex flex-col items-center cursor-pointer group min-w-0"
             title={`Ver ficha completa de ${awayTeam?.name}`}
           >
-            <TeamShield 
-              team={awayTeam} 
-              name={awayTeam?.name} 
-              shield={awayTeam?.shield}
-              size={84} 
-            />
-            <span className="font-black text-xs sm:text-sm text-white group-hover:text-[#22c55e] transition-colors mt-3 uppercase tracking-wide text-center leading-tight max-w-[150px]">
+            <div className="w-14 h-14 sm:w-20 sm:h-20 flex items-center justify-center">
+              <TeamShield 
+                team={awayTeam} 
+                name={awayTeam?.name} 
+                shield={awayTeam?.shield}
+                size={70}
+                className="w-14 h-14 sm:w-20 sm:h-20"
+              />
+            </div>
+            <span className="font-black text-[11px] sm:text-sm text-white group-hover:text-[#22c55e] transition-colors mt-2 uppercase tracking-wide text-center leading-tight max-w-[95px] sm:max-w-[150px] line-clamp-2">
               {awayTeam?.name}
             </span>
           </div>
         </div>
+
+        {/* Panel de Control para Editor (Debajo del marcador, con espacio completo) */}
+        {userRole === 'editor' && (
+          <div className="mt-4 pt-3 border-t border-[#1f5434]/40 flex flex-col items-center space-y-2">
+            {/* Botones de Estado */}
+            <div className="flex items-center bg-[#07160e] p-1 rounded-xl border border-[#1f5434]/60 shadow-inner">
+              <button
+                type="button"
+                onClick={handleSetScheduled}
+                className={`px-3 py-1 text-[11px] rounded-lg font-bold transition-all flex items-center space-x-1.5 ${
+                  match.status === 'scheduled'
+                    ? 'bg-[#1b4d30] text-amber-300 border border-amber-500/40 shadow-xs font-black'
+                    : 'text-gray-400 hover:text-gray-200 hover:bg-[#122e1e]'
+                }`}
+                title="Marcar como programado"
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${match.status === 'scheduled' ? 'bg-amber-400 animate-pulse' : 'bg-gray-500'}`}></span>
+                <span>Programado</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleSetFinished}
+                className={`px-3 py-1 text-[11px] rounded-lg font-bold transition-all flex items-center space-x-1.5 ${
+                  match.status === 'finished'
+                    ? 'bg-[#1b4d30] text-[#22c55e] border border-[#22c55e]/40 shadow-xs font-black'
+                    : 'text-gray-400 hover:text-gray-200 hover:bg-[#122e1e]'
+                }`}
+                title="Marcar como terminado y actualiza posiciones"
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${match.status === 'finished' ? 'bg-[#22c55e]' : 'bg-gray-500'}`}></span>
+                <span>Terminado</span>
+              </button>
+            </div>
+
+            {/* Configurar Hora cuando está programado */}
+            {match.status === 'scheduled' && (
+              <div className="flex items-center justify-center space-x-2 bg-[#07160e] px-3 py-1.5 rounded-xl border border-[#1f5434]/60 shadow-inner">
+                <Clock className="w-3.5 h-3.5 text-[#22c55e]" />
+                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Hora:</span>
+                <input
+                  type="text"
+                  value={match.time || ''}
+                  onChange={(e) => handleUpdateTime(e.target.value)}
+                  placeholder="00:00"
+                  className="w-14 bg-black/40 border border-[#1f5434] rounded-lg px-1.5 py-0.5 text-center text-white font-mono text-xs font-bold focus:border-[#22c55e] focus:outline-none transition-colors"
+                  title="Hora del partido (ejemplo: 15:30 o 00:00)"
+                />
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Selector de Pestañas (Eventos / Información de Clubes) */}

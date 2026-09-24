@@ -8,6 +8,7 @@ interface TeamShieldProps {
   primaryColor?: string;
   secondaryColor?: string;
   size?: number; // default 22
+  className?: string;
 }
 
 export const TeamShield: React.FC<TeamShieldProps> = ({
@@ -17,6 +18,7 @@ export const TeamShield: React.FC<TeamShieldProps> = ({
   primaryColor = '#16a34a',
   secondaryColor = '#ffffff',
   size = 22,
+  className = '',
 }) => {
   const [imageError, setImageError] = useState(false);
 
@@ -40,8 +42,8 @@ export const TeamShield: React.FC<TeamShieldProps> = ({
         width={size}
         height={size}
         onError={() => setImageError(true)}
-        className="inline-block flex-shrink-0 object-contain drop-shadow-sm rounded-xs select-none"
-        style={{ width: `${size}px`, height: `${size}px`, maxWidth: `${size}px`, maxHeight: `${size}px` }}
+        className={`inline-block flex-shrink-0 object-contain drop-shadow-sm rounded-xs select-none ${className}`}
+        style={className ? undefined : { width: `${size}px`, height: `${size}px`, maxWidth: `${size}px`, maxHeight: `${size}px` }}
       />
     );
   }
@@ -53,7 +55,7 @@ export const TeamShield: React.FC<TeamShieldProps> = ({
       viewBox="0 0 32 32"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className="inline-block flex-shrink-0 select-none drop-shadow-sm"
+      className={`inline-block flex-shrink-0 select-none drop-shadow-sm ${className}`}
       aria-label={teamName}
     >
       {/* Forma de escudo clásico de fútbol */}

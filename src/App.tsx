@@ -17,7 +17,7 @@ const MainLayout: React.FC = () => {
   const { viewMode, viewingTeamProfile, closeTeamProfile, teams } = useLeague();
 
   return (
-    <div className="min-h-screen bg-[#143824] text-[#e8f3ec] flex flex-col font-sans">
+    <div className="min-h-screen bg-[#143824] text-[#e8f3ec] flex flex-col font-sans overflow-x-hidden w-full max-w-full">
       {/* Header Fino y Sticky */}
       <Header />
 
