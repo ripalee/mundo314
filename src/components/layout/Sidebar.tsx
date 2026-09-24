@@ -15,7 +15,8 @@ export const Sidebar: React.FC = () => {
     setMobileSidebarOpen,
     setShowAdminModal,
     userRole,
-    globalYear
+    globalYear,
+    selectedDate
   } = useLeague();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -59,9 +60,12 @@ export const Sidebar: React.FC = () => {
     return acc;
   }, {} as Record<string, League[]>);
 
+  const dateParts = (selectedDate || '').split('-');
+  const dateLabel = dateParts.length === 3 ? `${dateParts[2]}/${dateParts[1]}` : 'PARTIDOS';
+
   const sidebarContent = (
     <div className="py-1 px-1.5 text-xs space-y-3 flex-1 overflow-y-auto">
-      {/* Botón HOY con bordes redondeados y estilo moderno con Año Histórico */}
+      {/* Botón con fecha y estilo moderno con Año Histórico */}
       <div>
         <button
           onClick={handleSelectHome}
@@ -73,7 +77,7 @@ export const Sidebar: React.FC = () => {
         >
           <div className="flex items-center space-x-2">
             <Calendar className="w-4 h-4 text-[#22c55e]" />
-            <span className="tracking-wider">HOY</span>
+            <span className="tracking-wider">{dateLabel}</span>
             {globalYear && (
               <span className="text-[10px] bg-[#16a34a]/30 text-[#22c55e] border border-[#22c55e]/40 px-1.5 py-0.5 rounded font-mono font-bold">
                 {globalYear}

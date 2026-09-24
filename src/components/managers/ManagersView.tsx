@@ -69,7 +69,7 @@ export const ManagersView: React.FC = () => {
           className="text-xs text-[#a3cfb2] hover:text-white flex items-center space-x-1 font-medium"
         >
           <ChevronLeft className="w-4 h-4 text-[#22c55e]" />
-          <span>Volver a Partidos de Hoy</span>
+          <span>Volver a Partidos</span>
         </button>
 
         <span className="text-[11px] text-[#8eb89c] font-mono">

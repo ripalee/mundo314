@@ -124,7 +124,7 @@ export const LeagueSectionView: React.FC = () => {
           className="text-xs text-[#a3cfb2] hover:text-white flex items-center space-x-1.5 font-medium transition-colors"
         >
           <ChevronLeft className="w-4 h-4 text-[#22c55e]" />
-          <span>Volver a Partidos de Hoy</span>
+          <span>Volver a Partidos</span>
         </button>
 
         <div className="flex items-center space-x-2">

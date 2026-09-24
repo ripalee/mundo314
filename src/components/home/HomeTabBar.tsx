@@ -21,10 +21,6 @@ export const HomeTabBar: React.FC = () => {
   const { homeTab, setHomeTab, leagues, selectedDate, setSelectedDate, globalYear } = useLeague();
   const [showPicker, setShowPicker] = useState(false);
 
-  const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
-  const isToday = selectedDate === todayStr;
-
   // Contar partidos en vivo para el día seleccionado
   const liveCount = leagues.reduce((acc, l) => {
     return acc + l.tournaments.reduce((tAcc, t) => {
@@ -39,7 +35,6 @@ export const HomeTabBar: React.FC = () => {
   };
 
   const getDayLabel = () => {
-    if (isToday) return 'HOY';
     const parts = selectedDate.split('-');
     if (parts.length === 3) {
       return `${parts[2]}/${parts[1]}`;
