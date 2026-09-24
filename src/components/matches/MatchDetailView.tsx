@@ -120,10 +120,22 @@ export const MatchDetailView: React.FC = () => {
   };
 
   const handleSetFinished = () => {
+    const finalHomeScore = isEditingHome && homeScoreStr !== '' 
+      ? parseInt(homeScoreStr, 10) 
+      : (match.homeScore ?? 0);
+    const finalAwayScore = isEditingAway && awayScoreStr !== '' 
+      ? parseInt(awayScoreStr, 10) 
+      : (match.awayScore ?? 0);
+
+    setIsEditingHome(false);
+    setIsEditingAway(false);
+    setHomeScoreStr(String(finalHomeScore));
+    setAwayScoreStr(String(finalAwayScore));
+
     updateMatch({
       ...match,
-      homeScore: match.homeScore ?? 0,
-      awayScore: match.awayScore ?? 0,
+      homeScore: finalHomeScore,
+      awayScore: finalAwayScore,
       status: 'finished',
       currentMinute: 90,
       periodDescription: 'Finalizado'
@@ -131,8 +143,22 @@ export const MatchDetailView: React.FC = () => {
   };
 
   const handleSetScheduled = () => {
+    const finalHomeScore = isEditingHome && homeScoreStr !== '' 
+      ? parseInt(homeScoreStr, 10) 
+      : (match.homeScore ?? 0);
+    const finalAwayScore = isEditingAway && awayScoreStr !== '' 
+      ? parseInt(awayScoreStr, 10) 
+      : (match.awayScore ?? 0);
+
+    setIsEditingHome(false);
+    setIsEditingAway(false);
+    setHomeScoreStr(String(finalHomeScore));
+    setAwayScoreStr(String(finalAwayScore));
+
     updateMatch({
       ...match,
+      homeScore: finalHomeScore,
+      awayScore: finalAwayScore,
       status: 'scheduled',
       currentMinute: 0,
       periodDescription: 'Programado'
@@ -369,8 +395,12 @@ export const MatchDetailView: React.FC = () => {
             <div className="flex items-center bg-[#07160e] p-1 rounded-xl border border-[#1f5434]/60 shadow-inner">
               <button
                 type="button"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  handleSetScheduled();
+                }}
                 onClick={handleSetScheduled}
-                className={`px-3 py-1 text-[11px] rounded-lg font-bold transition-all flex items-center space-x-1.5 ${
+                className={`px-3.5 py-1.5 text-xs rounded-lg font-bold transition-all flex items-center space-x-1.5 cursor-pointer active:scale-95 select-none ${
                   match.status === 'scheduled'
                     ? 'bg-[#1b4d30] text-amber-300 border border-amber-500/40 shadow-xs font-black'
                     : 'text-gray-400 hover:text-gray-200 hover:bg-[#122e1e]'
@@ -382,8 +412,12 @@ export const MatchDetailView: React.FC = () => {
               </button>
               <button
                 type="button"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  handleSetFinished();
+                }}
                 onClick={handleSetFinished}
-                className={`px-3 py-1 text-[11px] rounded-lg font-bold transition-all flex items-center space-x-1.5 ${
+                className={`px-3.5 py-1.5 text-xs rounded-lg font-bold transition-all flex items-center space-x-1.5 cursor-pointer active:scale-95 select-none ${
                   match.status === 'finished'
                     ? 'bg-[#1b4d30] text-[#22c55e] border border-[#22c55e]/40 shadow-xs font-black'
                     : 'text-gray-400 hover:text-gray-200 hover:bg-[#122e1e]'

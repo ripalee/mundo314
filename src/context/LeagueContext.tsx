@@ -541,6 +541,7 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Sincronización en la nube con Cloudflare D1 / KV
   const isHydratedFromCloudRef = useRef(false);
   const isApplyingCloudUpdateRef = useRef(false);
+  const lastLocalEditTimeRef = useRef(0);
   const saveTimeoutRef = useRef<any>(null);
   const [cloudSyncStatus, setCloudSyncStatus] = useState<'connected' | 'not_configured' | 'syncing' | 'error'>('syncing');
 
@@ -555,6 +556,12 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (json.ok) {
         setCloudSyncStatus('connected');
         if (json.data) {
+          // Si el editor realizó cambios locales hace menos de 7 segundos, no sobreescribir su pantalla
+          const timeSinceEdit = Date.now() - lastLocalEditTimeRef.current;
+          if (userRole === 'editor' && timeSinceEdit < 7000) {
+            return;
+          }
+
           const { leagues: cL, managers: cM, teams: cT, accounts: cA, globalYear: cY } = json.data;
           isApplyingCloudUpdateRef.current = true;
           if (Array.isArray(cL)) setLeagues(cL);
@@ -595,7 +602,7 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } finally {
       isHydratedFromCloudRef.current = true;
     }
-  }, [leagues, managers, teams, accounts, globalYear]);
+  }, [leagues, managers, teams, accounts, globalYear, userRole]);
 
   // Consultar la nube al montar y periódicamente cada 8 segundos o al volver a la ventana
   useEffect(() => {
@@ -652,7 +659,7 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       .catch((err) => {
         console.warn('Error sincronizando con la nube:', err);
       });
-    }, 600);
+    }, 200);
   }, [leagues, managers, teams, accounts, globalYear, userRole]);
 
   useEffect(() => {
@@ -764,6 +771,7 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const updateMatch = (updatedMatch: Match) => {
+    lastLocalEditTimeRef.current = Date.now();
     const sanitizedMatch: Match = updatedMatch.status === 'finished'
       ? {
           ...updatedMatch,
