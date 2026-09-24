@@ -130,6 +130,10 @@ interface LeagueContextType {
   globalYear: string;
   setGlobalYear: (year: string) => void;
 
+  // Estado de sincronización en la nube (Cloudflare D1)
+  cloudSyncStatus: 'connected' | 'not_configured' | 'syncing' | 'error';
+  manualCloudSync: () => Promise<void>;
+
   // Utilidades
   resetAllData: () => void;
 }
@@ -536,21 +540,31 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Sincronización en la nube con Cloudflare D1 / KV
   const isHydratedFromCloudRef = useRef(false);
+  const isApplyingCloudUpdateRef = useRef(false);
   const saveTimeoutRef = useRef<any>(null);
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<'connected' | 'not_configured' | 'syncing' | 'error'>('syncing');
 
   const syncFromCloud = useCallback(async () => {
     try {
-      const res = await fetch('/api/data');
-      if (!res.ok) return;
+      const res = await fetch('/api/data', { cache: 'no-store' });
+      if (!res.ok) {
+        setCloudSyncStatus('error');
+        return;
+      }
       const json = await res.json();
       if (json.ok) {
+        setCloudSyncStatus('connected');
         if (json.data) {
           const { leagues: cL, managers: cM, teams: cT, accounts: cA, globalYear: cY } = json.data;
-          if (Array.isArray(cL) && cL.length > 0) setLeagues(cL);
-          if (Array.isArray(cM) && cM.length > 0) setManagers(cM);
-          if (Array.isArray(cT) && cT.length > 0) setTeams(cT);
-          if (Array.isArray(cA) && cA.length > 0) setAccounts(cA);
+          isApplyingCloudUpdateRef.current = true;
+          if (Array.isArray(cL)) setLeagues(cL);
+          if (Array.isArray(cM)) setManagers(cM);
+          if (Array.isArray(cT)) setTeams(cT);
+          if (Array.isArray(cA)) setAccounts(cA);
           if (cY) setGlobalYear(cY);
+          setTimeout(() => {
+            isApplyingCloudUpdateRef.current = false;
+          }, 800);
         } else if (json.data === null) {
           // Si la base de datos está vacía y el usuario es editor, inicializamos la nube con los datos actuales
           const savedCurrentUser = localStorage.getItem(STORAGE_KEY_AUTH_CURRENT_USER);
@@ -569,34 +583,47 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             }).catch(() => {});
           }
         }
+      } else {
+        if (json.error === 'NO_BINDING_CONFIGURED') {
+          setCloudSyncStatus('not_configured');
+        } else {
+          setCloudSyncStatus('error');
+        }
       }
     } catch (_) {
-      // Sin conexión o sin backend configurado: continúa operando con localStorage
+      setCloudSyncStatus('error');
     } finally {
       isHydratedFromCloudRef.current = true;
     }
   }, [leagues, managers, teams, accounts, globalYear]);
 
-  // Consultar la nube al montar y periódicamente cada 25 segundos
+  // Consultar la nube al montar y periódicamente cada 8 segundos o al volver a la ventana
   useEffect(() => {
     syncFromCloud();
 
     const interval = setInterval(() => {
       syncFromCloud();
-    }, 25000);
+    }, 8000);
 
-    const handleFocus = () => syncFromCloud();
+    const handleFocus = () => {
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+        syncFromCloud();
+      }
+    };
+
     window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
 
     return () => {
       clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
     };
-  }, []);
+  }, [syncFromCloud]);
 
   // Guardar en la nube automáticamente cuando el editor realiza cambios
   const triggerCloudSave = useCallback(() => {
-    if (!isHydratedFromCloudRef.current || userRole !== 'editor') return;
+    if (!isHydratedFromCloudRef.current || userRole !== 'editor' || isApplyingCloudUpdateRef.current) return;
 
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
@@ -613,15 +640,29 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           accounts,
           globalYear,
         }),
-      }).catch((err) => {
+      })
+      .then(res => res.json())
+      .then(json => {
+        if (json.ok) {
+          setCloudSyncStatus('connected');
+        } else if (json.error === 'NO_BINDING_CONFIGURED') {
+          setCloudSyncStatus('not_configured');
+        }
+      })
+      .catch((err) => {
         console.warn('Error sincronizando con la nube:', err);
       });
-    }, 800);
+    }, 600);
   }, [leagues, managers, teams, accounts, globalYear, userRole]);
 
   useEffect(() => {
     triggerCloudSave();
   }, [leagues, managers, teams, accounts, globalYear, triggerCloudSave]);
+
+  const manualCloudSync = useCallback(async () => {
+    setCloudSyncStatus('syncing');
+    await syncFromCloud();
+  }, [syncFromCloud]);
 
   const activeLeague = leagues.find(l => l.id === activeLeagueId) || leagues[0];
 
@@ -1101,6 +1142,8 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       createCustomManager,
       getCurrentStandings,
       getAnualStandings,
+      cloudSyncStatus,
+      manualCloudSync,
       resetAllData
     }}>
       {children}

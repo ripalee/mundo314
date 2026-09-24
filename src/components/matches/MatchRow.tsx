@@ -49,7 +49,7 @@ export const MatchRow: React.FC<MatchRowProps> = ({ match }) => {
             </span>
           ) : isFinished ? (
             <span className="text-[10px] sm:text-[11px] text-[#9fc7af] font-bold font-mono tracking-tight">
-              Finalizado
+              FINAL
             </span>
           ) : (
             <span className="text-xs text-gray-200 font-bold font-mono">

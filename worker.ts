@@ -1,7 +1,28 @@
 interface Env {
   ASSETS: { fetch: (request: Request) => Promise<Response> };
-  DB?: any;
-  KV?: any;
+  [key: string]: any;
+}
+
+function getD1Database(env: Env) {
+  if (env.DB && typeof env.DB.prepare === 'function') return env.DB;
+  if (env.db && typeof env.db.prepare === 'function') return env.db;
+  for (const key of Object.keys(env)) {
+    if (key !== 'ASSETS' && env[key] && typeof env[key].prepare === 'function') {
+      return env[key];
+    }
+  }
+  return null;
+}
+
+function getKVNamespace(env: Env) {
+  if (env.KV && typeof env.KV.get === 'function') return env.KV;
+  if (env.kv && typeof env.kv.get === 'function') return env.kv;
+  for (const key of Object.keys(env)) {
+    if (key !== 'ASSETS' && env[key] && typeof env[key].get === 'function' && typeof env[key].put === 'function') {
+      return env[key];
+    }
+  }
+  return null;
 }
 
 export default {
@@ -13,24 +34,39 @@ export default {
       const corsHeaders = {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
         'Cache-Control': 'no-store, max-age=0',
       };
+
+      if (request.method === 'OPTIONS') {
+        return new Response(null, { headers: corsHeaders, status: 204 });
+      }
+
+      const db = getD1Database(env);
+      const kv = getKVNamespace(env);
 
       if (request.method === 'GET') {
         try {
           let dataStr: string | null = null;
-          if (env.DB) {
-            await env.DB.prepare(
+          if (db) {
+            await db.prepare(
               'CREATE TABLE IF NOT EXISTS store (key TEXT PRIMARY KEY, value TEXT)'
             ).run();
-            const res = await env.DB.prepare('SELECT value FROM store WHERE key = ?')
+            const res = await db.prepare('SELECT value FROM store WHERE key = ?')
               .bind('mundo314_data')
               .first<{ value: string }>();
             dataStr = res ? res.value : null;
-          } else if (env.KV) {
-            dataStr = await env.KV.get('mundo314_data');
+          } else if (kv) {
+            dataStr = await kv.get('mundo314_data');
           } else {
-            return new Response(JSON.stringify({ ok: false, error: 'NO_BINDING_CONFIGURED' }), {
+            const detectedKeys = Object.keys(env).filter(k => k !== 'ASSETS');
+            return new Response(JSON.stringify({ 
+              ok: false, 
+              error: 'NO_BINDING_CONFIGURED',
+              detectedKeys,
+              message: 'D1 binding not connected. Add a D1 database binding named DB in Cloudflare Settings -> Bindings.' 
+            }), {
               headers: corsHeaders,
               status: 200,
             });
@@ -60,19 +96,25 @@ export default {
           const body = await request.json();
           const dataStr = JSON.stringify(body);
 
-          if (env.DB) {
-            await env.DB.prepare(
+          if (db) {
+            await db.prepare(
               'CREATE TABLE IF NOT EXISTS store (key TEXT PRIMARY KEY, value TEXT)'
             ).run();
-            await env.DB.prepare(
+            await db.prepare(
               'INSERT INTO store (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'
             )
               .bind('mundo314_data', dataStr)
               .run();
-          } else if (env.KV) {
-            await env.KV.put('mundo314_data', dataStr);
+          } else if (kv) {
+            await kv.put('mundo314_data', dataStr);
           } else {
-            return new Response(JSON.stringify({ ok: false, error: 'NO_BINDING_CONFIGURED' }), {
+            const detectedKeys = Object.keys(env).filter(k => k !== 'ASSETS');
+            return new Response(JSON.stringify({ 
+              ok: false, 
+              error: 'NO_BINDING_CONFIGURED',
+              detectedKeys,
+              message: 'D1 binding not connected.' 
+            }), {
               headers: corsHeaders,
               status: 200,
             });
