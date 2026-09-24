@@ -459,10 +459,10 @@ export const LeagueSectionView: React.FC = () => {
                     {matchesByDate[dateKey].map((match) => {
                       const homeTeam = teams.find(t => t.id === match.homeTeamId);
                       const awayTeam = teams.find(t => t.id === match.awayTeamId);
-                      const hasScore = (match.homeScore !== null && match.awayScore !== null) || match.status === 'finished';
+                      const isLive = match.status === 'live' || match.status === 'halftime';
+                      const hasScore = (match.homeScore !== null && match.awayScore !== null) || match.status === 'finished' || isLive;
                       const homeScore = match.homeScore ?? 0;
                       const awayScore = match.awayScore ?? 0;
-                      const isLive = match.status === 'live' || match.status === 'halftime';
 
                       return (
                         <div

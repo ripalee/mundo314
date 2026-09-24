@@ -168,8 +168,23 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const parsed = JSON.parse(saved);
         // Filtrar si contiene remanentes de datos inventados
         if (Array.isArray(parsed) && !parsed.some((l: League) => l.id === 'liga_master_primera')) {
+          // Reparar partidos terminados con puntuación nula
+          const cleanedParsed = parsed.map((l: League) => ({
+            ...l,
+            tournaments: (l.tournaments || []).map(t => ({
+              ...t,
+              matches: (t.matches || []).map(m => (
+                m.status === 'finished' ? {
+                  ...m,
+                  homeScore: m.homeScore ?? 0,
+                  awayScore: m.awayScore ?? 0
+                } : m
+              ))
+            }))
+          }));
+
           // Reparar automáticamente fixtures que tengan anomalías de equipos duplicados o ausentes por fecha
-          const repaired = parsed.map((l: League) => {
+          const repaired = cleanedParsed.map((l: League) => {
             const hasDuplicateTeamInRound = l.tournaments.some(t => {
               const roundTeamsMap = new Map<number, Set<string>>();
               for (const m of t.matches) {
@@ -619,12 +634,20 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const updateMatch = (updatedMatch: Match) => {
+    const sanitizedMatch: Match = updatedMatch.status === 'finished'
+      ? {
+          ...updatedMatch,
+          homeScore: updatedMatch.homeScore ?? 0,
+          awayScore: updatedMatch.awayScore ?? 0,
+        }
+      : updatedMatch;
+
     setLeagues(prevLeagues => 
       prevLeagues.map(l => ({
         ...l,
         tournaments: l.tournaments.map(t => ({
           ...t,
-          matches: t.matches.map(m => m.id === updatedMatch.id ? updatedMatch : m)
+          matches: t.matches.map(m => m.id === sanitizedMatch.id ? sanitizedMatch : m)
         }))
       }))
     );

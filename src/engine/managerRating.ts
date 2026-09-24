@@ -76,7 +76,8 @@ export function calculateManagerScore(
   // Filtrar partidos disputados por el equipo
   const teamMatches = matches.filter(
     m => (m.status === 'finished' || m.status === 'live' || m.status === 'halftime') &&
-         m.homeScore !== null && m.awayScore !== null &&
+         (m.homeScore !== null || m.status === 'finished') &&
+         (m.awayScore !== null || m.status === 'finished') &&
          (m.homeTeamId === team.id || m.awayTeamId === team.id)
   );
 
@@ -93,8 +94,8 @@ export function calculateManagerScore(
 
   teamMatches.forEach(m => {
     const isHome = m.homeTeamId === team.id;
-    const teamGoals = isHome ? m.homeScore! : m.awayScore!;
-    const oppGoals = isHome ? m.awayScore! : m.homeScore!;
+    const teamGoals = isHome ? (m.homeScore ?? 0) : (m.awayScore ?? 0);
+    const oppGoals = isHome ? (m.awayScore ?? 0) : (m.homeScore ?? 0);
 
     const isMatchClassic = m.isClassic || (team.classicRivalId && (m.homeTeamId === team.classicRivalId || m.awayTeamId === team.classicRivalId));
     const isMatchIntl = !!m.isInternational;

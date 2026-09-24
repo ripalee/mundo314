@@ -78,7 +78,7 @@ export const MatchRow: React.FC<MatchRowProps> = ({ match }) => {
               <span className={`text-xs sm:text-sm font-black font-mono tracking-tight ${
                 isLive ? 'text-[#ef4444]' : 'text-white'
               }`}>
-                {match.homeScore} - {match.awayScore}
+                {homeScore} - {awayScore}
               </span>
             ) : (
               <span className="text-xs text-gray-400 font-bold">-</span>
