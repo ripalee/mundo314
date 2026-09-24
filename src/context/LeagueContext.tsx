@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { League, Tournament, StandingsRow } from '../types/league';
 import { Match, MatchIncident } from '../types/match';
 import { Manager, ManagerObjectiveType, ManagerScoreAudit } from '../types/manager';
@@ -533,6 +533,95 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_ADMIN_AUTH, String(isAdminAuthenticated));
   }, [isAdminAuthenticated]);
+
+  // Sincronización en la nube con Cloudflare D1 / KV
+  const isHydratedFromCloudRef = useRef(false);
+  const saveTimeoutRef = useRef<any>(null);
+
+  const syncFromCloud = useCallback(async () => {
+    try {
+      const res = await fetch('/api/data');
+      if (!res.ok) return;
+      const json = await res.json();
+      if (json.ok) {
+        if (json.data) {
+          const { leagues: cL, managers: cM, teams: cT, accounts: cA, globalYear: cY } = json.data;
+          if (Array.isArray(cL) && cL.length > 0) setLeagues(cL);
+          if (Array.isArray(cM) && cM.length > 0) setManagers(cM);
+          if (Array.isArray(cT) && cT.length > 0) setTeams(cT);
+          if (Array.isArray(cA) && cA.length > 0) setAccounts(cA);
+          if (cY) setGlobalYear(cY);
+        } else if (json.data === null) {
+          // Si la base de datos está vacía y el usuario es editor, inicializamos la nube con los datos actuales
+          const savedCurrentUser = localStorage.getItem(STORAGE_KEY_AUTH_CURRENT_USER);
+          const isEditor = savedCurrentUser && JSON.parse(savedCurrentUser)?.role === 'editor';
+          if (isEditor) {
+            fetch('/api/data', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                leagues,
+                managers,
+                teams,
+                accounts,
+                globalYear,
+              }),
+            }).catch(() => {});
+          }
+        }
+      }
+    } catch (_) {
+      // Sin conexión o sin backend configurado: continúa operando con localStorage
+    } finally {
+      isHydratedFromCloudRef.current = true;
+    }
+  }, [leagues, managers, teams, accounts, globalYear]);
+
+  // Consultar la nube al montar y periódicamente cada 25 segundos
+  useEffect(() => {
+    syncFromCloud();
+
+    const interval = setInterval(() => {
+      syncFromCloud();
+    }, 25000);
+
+    const handleFocus = () => syncFromCloud();
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
+
+  // Guardar en la nube automáticamente cuando el editor realiza cambios
+  const triggerCloudSave = useCallback(() => {
+    if (!isHydratedFromCloudRef.current || userRole !== 'editor') return;
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    saveTimeoutRef.current = setTimeout(() => {
+      fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leagues,
+          managers,
+          teams,
+          accounts,
+          globalYear,
+        }),
+      }).catch((err) => {
+        console.warn('Error sincronizando con la nube:', err);
+      });
+    }, 800);
+  }, [leagues, managers, teams, accounts, globalYear, userRole]);
+
+  useEffect(() => {
+    triggerCloudSave();
+  }, [leagues, managers, teams, accounts, globalYear, triggerCloudSave]);
 
   const activeLeague = leagues.find(l => l.id === activeLeagueId) || leagues[0];
 
