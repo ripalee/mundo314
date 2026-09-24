@@ -17,7 +17,7 @@ export const MatchRow: React.FC<MatchRowProps> = ({ match }) => {
   const isLive = match.status === 'live' || match.status === 'halftime';
   const isFinished = match.status === 'finished';
 
-  const hasScore = match.homeScore !== null && match.awayScore !== null;
+  const hasScore = (match.homeScore !== null && match.awayScore !== null) || isFinished;
   const homeScore = match.homeScore ?? 0;
   const awayScore = match.awayScore ?? 0;
 

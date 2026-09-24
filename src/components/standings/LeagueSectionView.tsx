@@ -92,7 +92,7 @@ export const LeagueSectionView: React.FC = () => {
     ? `${formatMatchDay(sortedDates[0])} — ${formatMatchDay(sortedDates[sortedDates.length - 1])}`
     : 'FECHA REGULAR';
 
-  // Badges de forma (Últimas): V (verde), E (gris), D (rojo) con esquinas redondeadas suaves
+  // Badges de forma (Últimas): V (verde), E (amarillo estilo Promiedos), D (rojo)
   const renderFormBadge = (res: 'W' | 'D' | 'L', idx: number) => {
     if (res === 'W') {
       return (
@@ -103,7 +103,7 @@ export const LeagueSectionView: React.FC = () => {
     }
     if (res === 'D') {
       return (
-        <span key={idx} className="w-4 h-4 bg-[#64748b] text-white font-black text-[9px] rounded-md flex items-center justify-center shadow-xs">
+        <span key={idx} className="w-4 h-4 bg-[#ca8a04] text-white font-black text-[9px] rounded-md flex items-center justify-center shadow-xs">
           E
         </span>
       );
@@ -459,7 +459,9 @@ export const LeagueSectionView: React.FC = () => {
                     {matchesByDate[dateKey].map((match) => {
                       const homeTeam = teams.find(t => t.id === match.homeTeamId);
                       const awayTeam = teams.find(t => t.id === match.awayTeamId);
-                      const hasScore = match.homeScore !== null && match.awayScore !== null;
+                      const hasScore = (match.homeScore !== null && match.awayScore !== null) || match.status === 'finished';
+                      const homeScore = match.homeScore ?? 0;
+                      const awayScore = match.awayScore ?? 0;
                       const isLive = match.status === 'live' || match.status === 'halftime';
 
                       return (
@@ -493,7 +495,7 @@ export const LeagueSectionView: React.FC = () => {
                               <div className="flex items-center space-x-1.5 truncate pr-2">
                                 <TeamShield team={homeTeam} name={homeTeam?.name} size={16} />
                                 <span className={`truncate font-semibold ${
-                                  hasScore && (match.homeScore ?? 0) > (match.awayScore ?? 0) 
+                                  hasScore && homeScore > awayScore 
                                     ? 'text-white font-bold' 
                                     : 'text-gray-200'
                                 }`}>
@@ -501,7 +503,7 @@ export const LeagueSectionView: React.FC = () => {
                                 </span>
                               </div>
                               <span className="font-mono font-bold text-white text-xs w-4 text-right shrink-0">
-                                {hasScore ? match.homeScore : '-'}
+                                {hasScore ? homeScore : '-'}
                               </span>
                             </div>
 
@@ -510,7 +512,7 @@ export const LeagueSectionView: React.FC = () => {
                               <div className="flex items-center space-x-1.5 truncate pr-2">
                                 <TeamShield team={awayTeam} name={awayTeam?.name} size={16} />
                                 <span className={`truncate font-semibold ${
-                                  hasScore && (match.awayScore ?? 0) > (match.homeScore ?? 0) 
+                                  hasScore && awayScore > homeScore 
                                     ? 'text-white font-bold' 
                                     : 'text-gray-200'
                                 }`}>
@@ -518,7 +520,7 @@ export const LeagueSectionView: React.FC = () => {
                                 </span>
                               </div>
                               <span className="font-mono font-bold text-white text-xs w-4 text-right shrink-0">
-                                {hasScore ? match.awayScore : '-'}
+                                {hasScore ? awayScore : '-'}
                               </span>
                             </div>
                           </div>

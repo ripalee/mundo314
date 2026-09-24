@@ -122,6 +122,8 @@ export const MatchDetailView: React.FC = () => {
   const handleSetFinished = () => {
     updateMatch({
       ...match,
+      homeScore: match.homeScore ?? 0,
+      awayScore: match.awayScore ?? 0,
       status: 'finished',
       currentMinute: 90,
       periodDescription: 'Finalizado'

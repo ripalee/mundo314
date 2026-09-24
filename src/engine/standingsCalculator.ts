@@ -36,7 +36,8 @@ export function calculateStandings(
   // Procesar partidos finalizados o con resultado
   const finishedMatches = matches.filter(
     m => (m.status === 'finished' || m.status === 'live' || m.status === 'halftime') &&
-         m.homeScore !== null && m.awayScore !== null
+         (m.homeScore !== null || m.status === 'finished') &&
+         (m.awayScore !== null || m.status === 'finished')
   );
 
   // Ordenar cronológicamente para calcular la forma reciente
@@ -50,22 +51,25 @@ export function calculateStandings(
     const homeStats = statsMap.get(m.homeTeamId);
     const awayStats = statsMap.get(m.awayTeamId);
 
-    if (!homeStats || !awayStats || m.homeScore === null || m.awayScore === null) return;
+    if (!homeStats || !awayStats) return;
+
+    const homeScore = m.homeScore ?? 0;
+    const awayScore = m.awayScore ?? 0;
 
     homeStats.played += 1;
     awayStats.played += 1;
-    homeStats.goalsFor += m.homeScore;
-    homeStats.goalsAgainst += m.awayScore;
-    awayStats.goalsFor += m.awayScore;
-    awayStats.goalsAgainst += m.homeScore;
+    homeStats.goalsFor += homeScore;
+    homeStats.goalsAgainst += awayScore;
+    awayStats.goalsFor += awayScore;
+    awayStats.goalsAgainst += homeScore;
 
-    if (m.homeScore > m.awayScore) {
+    if (homeScore > awayScore) {
       homeStats.won += 1;
       homeStats.points += 3;
       awayStats.lost += 1;
       homeStats.form.push('W');
       awayStats.form.push('L');
-    } else if (m.homeScore === m.awayScore) {
+    } else if (homeScore === awayScore) {
       homeStats.drawn += 1;
       homeStats.points += 1;
       awayStats.drawn += 1;
