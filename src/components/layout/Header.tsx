@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLeague } from '../../context/LeagueContext';
 import { Menu, X, Bell, Trophy, User, LogIn, LogOut } from 'lucide-react';
 
@@ -19,6 +19,25 @@ export const Header: React.FC = () => {
     globalYear,
     setGlobalYear
   } = useLeague();
+
+  const [localYear, setLocalYear] = useState<string>(globalYear || '1974');
+  const [isEditingYear, setIsEditingYear] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!isEditingYear) {
+      setLocalYear(globalYear || '1974');
+    }
+  }, [globalYear, isEditingYear]);
+
+  const handleCommitYear = (val: string) => {
+    const trimmed = val.trim();
+    if (trimmed && trimmed !== globalYear) {
+      setGlobalYear(trimmed);
+    } else {
+      setLocalYear(globalYear || '1974');
+    }
+    setIsEditingYear(false);
+  };
 
   return (
     <header className="bg-[#0b1e13] border-b border-[#1c472e] sticky top-0 z-40 h-12 select-none shadow-sm">
@@ -50,7 +69,7 @@ export const Header: React.FC = () => {
         <div className="flex items-center space-x-1.5 sm:space-x-3 text-xs">
           {/* Botón Ingresar o Sesión de Usuario */}
           {currentUser ? (
-            <div className="flex items-center space-x-1.5 bg-[#06150c] pl-2 sm:pl-2.5 pr-1.5 py-0.5 sm:py-1 rounded-full border border-[#1f4f34]">
+            <div className="flex items-center space-x-1.5 pl-1 py-0.5 sm:py-1">
               <div className="flex items-center space-x-1">
                 <User className="w-3.5 h-3.5 text-[#22c55e] shrink-0" />
                 <span className="font-bold text-xs text-white max-w-[70px] sm:max-w-[110px] truncate">
@@ -83,21 +102,31 @@ export const Header: React.FC = () => {
             </button>
           )}
 
-          {/* Editor General del Año de la Página */}
+          {/* Editor General del Año de la Página (Sin fondo) */}
           {userRole === 'editor' ? (
-            <div className="flex items-center space-x-1 bg-[#06150c] border border-amber-500/40 px-1.5 sm:px-2 py-0.5 rounded-full shadow-xs">
-              <span className="text-[10px] text-amber-300 font-bold uppercase tracking-wider pl-0.5 sm:pl-1">Año:</span>
+            <div className="flex items-center space-x-1.5 py-0.5">
+              <span className="text-[10px] text-amber-300 font-bold uppercase tracking-wider">AÑO:</span>
               <input
                 type="text"
-                value={globalYear}
-                onChange={(e) => setGlobalYear(e.target.value)}
-                className="w-11 sm:w-14 bg-[#0a1e13] text-amber-300 font-mono font-black text-xs text-center border border-[#1f4f34] rounded-md px-1 py-0.5 focus:border-[#22c55e] focus:outline-none"
-                title="Editor general del año de la página (ej. 1974). Al cambiarlo se sincroniza en toda la web."
+                value={localYear}
+                onFocus={(e) => {
+                  setIsEditingYear(true);
+                  e.target.select();
+                }}
+                onChange={(e) => setLocalYear(e.target.value)}
+                onBlur={(e) => handleCommitYear(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
+                className="w-12 sm:w-14 bg-transparent text-amber-300 font-mono font-black text-xs text-center border-b border-amber-500/40 hover:border-amber-400 focus:border-[#22c55e] focus:outline-none transition-colors py-0.5"
+                title="Haz clic para cambiar el año. Presiona Enter o haz clic fuera para guardar."
                 placeholder="1974"
               />
             </div>
           ) : (
-            <div className="flex items-center space-x-1 bg-[#06150c] border border-[#1f4f34] px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-xs font-mono font-bold text-amber-300 shadow-xs">
+            <div className="flex items-center space-x-1 py-0.5 text-xs font-mono font-bold text-amber-300">
               <span className="text-gray-400 font-sans text-[10px] font-bold">AÑO</span>
               <span>{globalYear}</span>
             </div>

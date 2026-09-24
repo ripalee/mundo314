@@ -274,19 +274,25 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (saved) {
         const parsed: StoredAccount[] = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          const adminIdx = parsed.findIndex(a => a.username.toLowerCase() === 'admin314');
-          if (adminIdx >= 0) {
-            parsed[adminIdx].password = '31416';
-            parsed[adminIdx].role = 'editor';
-            return parsed;
-          } else {
-            return [DEFAULT_EDITOR_ACCOUNT, ...parsed];
-          }
+          const normalized = parsed.map(a => {
+            const lower = a.username.toLowerCase();
+            if (lower === 'admin314') return { ...a, password: '31416', role: 'editor' as const };
+            if (lower === 'ripale') return { ...a, role: 'editor' as const };
+            return a;
+          });
+          const hasAdmin = normalized.some(a => a.username.toLowerCase() === 'admin314');
+          return hasAdmin ? normalized : [DEFAULT_EDITOR_ACCOUNT, ...normalized];
         }
       }
     } catch (_) {}
     return [DEFAULT_EDITOR_ACCOUNT];
   });
+
+  const isEditorUsername = (uname?: string): boolean => {
+    if (!uname) return false;
+    const lower = uname.trim().toLowerCase();
+    return lower === 'admin314' || lower === 'ripale';
+  };
 
   // Sesión de usuario actual (opcional: si es null, el usuario navega como público/invitado)
   const [currentUser, setCurrentUser] = useState<AppUser | null>(() => {
@@ -294,7 +300,12 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const saved = localStorage.getItem(STORAGE_KEY_AUTH_CURRENT_USER);
       if (saved) {
         const parsed: AppUser = JSON.parse(saved);
-        if (parsed && parsed.username) return parsed;
+        if (parsed && parsed.username) {
+          if (isEditorUsername(parsed.username)) {
+            parsed.role = 'editor';
+          }
+          return parsed;
+        }
       }
     } catch (_) {}
     return null;
@@ -303,13 +314,13 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Modal de Login / Registro
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
 
-  // Rol del usuario: Solo 'editor' si la sesión actual tiene rol de editor (ej. admin314)
+  // Rol del usuario: 'editor' si la sesión actual tiene rol de editor (ej. admin314 o ripale)
   const [userRole, setUserRoleState] = useState<'public' | 'editor'>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_AUTH_CURRENT_USER);
       if (saved) {
         const parsed: AppUser = JSON.parse(saved);
-        if (parsed && parsed.role === 'editor') return 'editor';
+        if (parsed && (parsed.role === 'editor' || isEditorUsername(parsed.username))) return 'editor';
       }
     } catch (_) {}
     return 'public';
@@ -320,7 +331,7 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const saved = localStorage.getItem(STORAGE_KEY_AUTH_CURRENT_USER);
       if (saved) {
         const parsed: AppUser = JSON.parse(saved);
-        return parsed?.role === 'editor';
+        return parsed?.role === 'editor' || isEditorUsername(parsed?.username);
       }
     } catch (_) {}
     return false;
@@ -346,18 +357,22 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return { success: false, error: 'Usuario o contraseña incorrectos.' };
     }
 
+    const effectiveRole: 'editor' | 'public' = (account.role === 'editor' || isEditorUsername(account.username))
+      ? 'editor'
+      : 'public';
+
     const session: AppUser = {
       id: account.id,
       username: account.username,
-      role: account.role,
+      role: effectiveRole,
       createdAt: account.createdAt,
     };
 
     setCurrentUser(session);
-    setUserRoleState(account.role);
-    setIsAdminAuthenticated(account.role === 'editor');
+    setUserRoleState(effectiveRole);
+    setIsAdminAuthenticated(effectiveRole === 'editor');
     localStorage.setItem(STORAGE_KEY_AUTH_CURRENT_USER, JSON.stringify(session));
-    localStorage.setItem(STORAGE_KEY_USER_ROLE, account.role);
+    localStorage.setItem(STORAGE_KEY_USER_ROLE, effectiveRole);
 
     return { success: true };
   };
@@ -377,11 +392,13 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return { success: false, error: 'Este nombre de usuario ya está registrado.' };
     }
 
+    const effectiveRole: 'editor' | 'public' = isEditorUsername(cleanUsername) ? 'editor' : 'public';
+
     const newAccount: StoredAccount = {
       id: 'user-' + Date.now(),
       username: cleanUsername,
       password,
-      role: 'public', // Solo admin314 es editor
+      role: effectiveRole,
       createdAt: new Date().toISOString(),
     };
 
@@ -392,15 +409,15 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const session: AppUser = {
       id: newAccount.id,
       username: newAccount.username,
-      role: 'public',
+      role: effectiveRole,
       createdAt: newAccount.createdAt,
     };
 
     setCurrentUser(session);
-    setUserRoleState('public');
-    setIsAdminAuthenticated(false);
+    setUserRoleState(effectiveRole);
+    setIsAdminAuthenticated(effectiveRole === 'editor');
     localStorage.setItem(STORAGE_KEY_AUTH_CURRENT_USER, JSON.stringify(session));
-    localStorage.setItem(STORAGE_KEY_USER_ROLE, 'public');
+    localStorage.setItem(STORAGE_KEY_USER_ROLE, effectiveRole);
 
     return { success: true };
   };
@@ -420,7 +437,9 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   });
 
   const setGlobalYear = (year: string) => {
-    const cleanYear = year.trim() || '1974';
+    const cleanYear = year.trim();
+    if (!cleanYear) return;
+    lastLocalEditTimeRef.current = Date.now();
     setGlobalYearState(cleanYear);
     localStorage.setItem(STORAGE_KEY_GLOBAL_YEAR, cleanYear);
     setLeagues(prev => prev.map(l => ({
@@ -567,8 +586,16 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if (Array.isArray(cL)) setLeagues(cL);
           if (Array.isArray(cM)) setManagers(cM);
           if (Array.isArray(cT)) setTeams(cT);
-          if (Array.isArray(cA)) setAccounts(cA);
-          if (cY) setGlobalYear(cY);
+          if (Array.isArray(cA)) {
+            const normalizedAccounts = cA.map(a => 
+              isEditorUsername(a.username) ? { ...a, role: 'editor' as const } : a
+            );
+            setAccounts(normalizedAccounts);
+          }
+          if (cY) {
+            setGlobalYearState(cY);
+            localStorage.setItem(STORAGE_KEY_GLOBAL_YEAR, cY);
+          }
           setTimeout(() => {
             isApplyingCloudUpdateRef.current = false;
           }, 800);
