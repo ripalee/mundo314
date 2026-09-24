@@ -12,7 +12,8 @@ export const RightRail: React.FC = () => {
     getManagerAudit, 
     openDTView,
     teams,
-    setShowAdminModal
+    setShowAdminModal,
+    userRole
   } = useLeague();
 
   const activeLeague = leagues[0];
@@ -66,14 +67,18 @@ export const RightRail: React.FC = () => {
         ) : (
           <div className="p-4 text-center space-y-2.5">
             <p className="text-[11px] text-gray-400">
-              No hay tabla disponible aún. Crea una liga para ver las posiciones aquí.
+              {userRole === 'editor' 
+                ? 'No hay tabla disponible aún. Crea una liga para ver las posiciones aquí.' 
+                : 'No hay tabla de posiciones disponible.'}
             </p>
-            <button
-              onClick={() => setShowAdminModal(true)}
-              className="w-full py-1.5 bg-[#22c55e] hover:bg-[#16a34a] text-black font-extrabold text-[10px] uppercase rounded-xl transition-all shadow-xs"
-            >
-              + Crear Liga
-            </button>
+            {userRole === 'editor' && (
+              <button
+                onClick={() => setShowAdminModal(true)}
+                className="w-full py-1.5 bg-[#22c55e] hover:bg-[#16a34a] text-black font-extrabold text-[10px] uppercase rounded-xl transition-all shadow-xs"
+              >
+                + Crear Liga
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -134,23 +139,25 @@ export const RightRail: React.FC = () => {
         </button>
       </div>
 
-      {/* Widget 3: PANEL ADMIN RÁPIDO */}
-      <div className="bg-[#0f2c1d]/90 border border-[#1f5434]/50 rounded-2xl p-3.5 text-xs space-y-2.5 shadow-md">
-        <div className="flex items-center space-x-1.5 text-[#22c55e] font-bold uppercase text-[10px] tracking-wide">
-          <Globe className="w-3.5 h-3.5" />
-          <span>TORNEOS Y PAÍSES</span>
+      {/* Widget 3: PANEL ADMIN RÁPIDO (Solo para Editor) */}
+      {userRole === 'editor' && (
+        <div className="bg-[#0f2c1d]/90 border border-[#1f5434]/50 rounded-2xl p-3.5 text-xs space-y-2.5 shadow-md">
+          <div className="flex items-center space-x-1.5 text-[#22c55e] font-bold uppercase text-[10px] tracking-wide">
+            <Globe className="w-3.5 h-3.5" />
+            <span>TORNEOS Y PAÍSES</span>
+          </div>
+          <p className="text-[11px] text-gray-300 leading-snug">
+            Crea nuevas ligas organizadas por país y subcategorías con fixture automático de Round-Robin.
+          </p>
+          <button
+            onClick={() => setShowAdminModal(true)}
+            className="w-full py-2 px-3 bg-[#143622] hover:bg-[#1c4d30] border border-[#22c55e]/40 text-[#22c55e] hover:text-white font-bold text-[11px] rounded-xl transition-all flex items-center justify-center space-x-1 shadow-xs"
+          >
+            <PlusCircle className="w-3.5 h-3.5" />
+            <span>Configurar Liga</span>
+          </button>
         </div>
-        <p className="text-[11px] text-gray-300 leading-snug">
-          Crea nuevas ligas organizadas por país y subcategorías con fixture automático de Round-Robin.
-        </p>
-        <button
-          onClick={() => setShowAdminModal(true)}
-          className="w-full py-2 px-3 bg-[#143622] hover:bg-[#1c4d30] border border-[#22c55e]/40 text-[#22c55e] hover:text-white font-bold text-[11px] rounded-xl transition-all flex items-center justify-center space-x-1 shadow-xs"
-        >
-          <PlusCircle className="w-3.5 h-3.5" />
-          <span>Configurar Liga</span>
-        </button>
-      </div>
+      )}
     </aside>
   );
 };

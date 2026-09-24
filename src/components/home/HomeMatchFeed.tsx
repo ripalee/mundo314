@@ -19,7 +19,7 @@ const matchDayMatchesSelected = (matchDate: string, selected: string) => {
 };
 
 export const HomeMatchFeed: React.FC = () => {
-  const { leagues, homeTab, selectedDate, setShowAdminModal } = useLeague();
+  const { leagues, homeTab, selectedDate, setShowAdminModal, userRole } = useLeague();
 
   const leaguesWithMatches = leagues.map(league => {
     const allMatches = league.tournaments.flatMap(t => t.matches);
@@ -59,17 +59,25 @@ export const HomeMatchFeed: React.FC = () => {
             <h3 className="font-extrabold text-white text-sm uppercase tracking-wide">
               No hay ligas ni torneos configurados
             </h3>
-            <p className="text-xs text-[#8ab899] mt-1 max-w-md mx-auto">
-              Como administrador, puedes crear tus ligas por país, elegir los clubes participantes y generar los fixtures automáticamente.
-            </p>
+            {userRole === 'editor' ? (
+              <p className="text-xs text-[#8ab899] mt-1 max-w-md mx-auto">
+                Como administrador, puedes crear tus ligas por país, elegir los clubes participantes y generar los fixtures automáticamente.
+              </p>
+            ) : (
+              <p className="text-xs text-[#8ab899] mt-1 max-w-md mx-auto">
+                Aún no hay torneos disponibles. Vuelve a consultar pronto para ver los próximos partidos y resultados.
+              </p>
+            )}
           </div>
-          <button
-            onClick={() => setShowAdminModal(true)}
-            className="px-4 py-2 bg-[#22c55e] hover:bg-[#16a34a] text-black font-extrabold text-xs uppercase tracking-wider rounded-xs transition-colors shadow inline-flex items-center space-x-1.5"
-          >
-            <PlusCircle className="w-4 h-4" />
-            <span>Crear Primera Liga</span>
-          </button>
+          {userRole === 'editor' && (
+            <button
+              onClick={() => setShowAdminModal(true)}
+              className="px-4 py-2 bg-[#22c55e] hover:bg-[#16a34a] text-black font-extrabold text-xs uppercase tracking-wider rounded-xs transition-colors shadow inline-flex items-center space-x-1.5"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>Crear Primera Liga</span>
+            </button>
+          )}
         </div>
       ) : totalMatchesCount === 0 ? (
         <div className="bg-[#102c1e] border border-[#1d4c33] rounded-sm p-8 text-center text-xs text-[#8ab899]">
@@ -83,15 +91,17 @@ export const HomeMatchFeed: React.FC = () => {
         </div>
       )}
 
-      {/* Pie informativo de la plataforma */}
-      <div className="mt-5 bg-[#0f281b] border border-[#1b462e] rounded-sm p-3 text-xs text-[#8ab899]">
-        <div className="font-bold text-white mb-1">
-          Liga Master Official • Sistema de Gestión de Torneos
+      {/* Pie informativo exclusivo para Administrador */}
+      {userRole === 'editor' && (
+        <div className="mt-5 bg-[#0f281b] border border-[#1b462e] rounded-sm p-3 text-xs text-[#8ab899]">
+          <div className="font-bold text-white mb-1">
+            Liga Master Official • Sistema de Gestión de Torneos
+          </div>
+          <p className="text-[11px] leading-relaxed text-[#78a587]">
+            Las ligas, países y calendarios son administrados y generados a medida. Administra torneos desde el panel de control con el atajo <kbd className="bg-black/40 px-1 py-0.5 rounded text-gray-300 font-mono text-[10px]">Alt+M</kbd>.
+          </p>
         </div>
-        <p className="text-[11px] leading-relaxed text-[#78a587]">
-          Las ligas, países y calendarios son administrados y generados a medida. Administra torneos desde el panel de control con el atajo <kbd className="bg-black/40 px-1 py-0.5 rounded text-gray-300 font-mono text-[10px]">Alt+M</kbd>.
-        </p>
-      </div>
+      )}
     </div>
   );
 };
