@@ -228,10 +228,16 @@ export const MatchDetailView: React.FC = () => {
             </span>
           </div>
 
-          {/* Marcador Central */}
+          {/* Marcador Central estilo Promiedos */}
           <div className="flex flex-col items-center justify-center px-2 sm:px-4">
-            <div className="flex items-center space-x-3 text-3xl sm:text-4xl font-black font-mono">
-              {/* Goles Local: en modo editor se edita directamente en el 0 sin fondo, sin cartel de goles y pudiendo borrarlo */}
+            {/* Fecha arriba del marcador: ej. 24/09 */}
+            <div className="text-xs sm:text-sm font-bold text-gray-200 tracking-wider mb-1 font-mono">
+              {formatDayMonth(match.date) || '24/09'}
+            </div>
+
+            {/* Marcador: [Goles Local] - [Goles Visitante] */}
+            <div className="flex items-center justify-center space-x-2 text-3xl sm:text-4xl font-black font-mono text-white">
+              {/* Goles Local: en modo editor se edita directamente en el 0 sin fondo */}
               {userRole === 'editor' ? (
                 <input
                   type="text"
@@ -264,29 +270,17 @@ export const MatchDetailView: React.FC = () => {
                       (e.target as HTMLInputElement).blur();
                     }
                   }}
-                  className="w-12 sm:w-16 text-center text-3xl sm:text-4xl font-black font-mono text-white bg-transparent border-none outline-none focus:outline-none focus:ring-0 cursor-pointer focus:cursor-text hover:text-[#22c55e] focus:text-[#22c55e] transition-colors p-0 m-0"
+                  className="w-10 sm:w-12 text-center text-3xl sm:text-4xl font-black font-mono text-white bg-transparent border-none outline-none focus:outline-none focus:ring-0 cursor-pointer focus:cursor-text hover:text-[#22c55e] focus:text-[#22c55e] transition-colors p-0 m-0"
                   title={`Editar goles de ${homeTeam?.name || 'Local'}`}
                 />
               ) : (
                 <span className="text-white drop-shadow-sm">{match.homeScore ?? 0}</span>
               )}
 
-              {/* Minuto / Hora / Finalizado */}
-              <span className={`text-xs font-black px-2.5 py-1 rounded-lg border font-mono shadow-xs ${
-                match.status === 'live' || match.status === 'halftime'
-                  ? 'text-[#ef4444] bg-[#07150e] border-red-950/60 animate-pulse'
-                  : match.status === 'finished'
-                  ? 'text-[#9fc7af] bg-[#07150e] border-[#1f5434]/60'
-                  : 'text-gray-200 bg-[#07150e] border-[#1f5434]/60'
-              }`}>
-                {match.status === 'live' || match.status === 'halftime'
-                  ? (match.status === 'halftime' ? 'ET' : `${match.currentMinute || 23}'`) 
-                  : match.status === 'finished' 
-                  ? 'Finalizado' 
-                  : (match.time || '00:00')}
-              </span>
+              {/* Guión separador */}
+              <span className="text-white font-mono select-none px-0.5">-</span>
 
-              {/* Goles Visitante: en modo editor se edita directamente en el 0 sin fondo, sin cartel de goles y pudiendo borrarlo */}
+              {/* Goles Visitante: en modo editor se edita directamente en el 0 sin fondo */}
               {userRole === 'editor' ? (
                 <input
                   type="text"
@@ -319,7 +313,7 @@ export const MatchDetailView: React.FC = () => {
                       (e.target as HTMLInputElement).blur();
                     }
                   }}
-                  className="w-12 sm:w-16 text-center text-3xl sm:text-4xl font-black font-mono text-white bg-transparent border-none outline-none focus:outline-none focus:ring-0 cursor-pointer focus:cursor-text hover:text-[#22c55e] focus:text-[#22c55e] transition-colors p-0 m-0"
+                  className="w-10 sm:w-12 text-center text-3xl sm:text-4xl font-black font-mono text-white bg-transparent border-none outline-none focus:outline-none focus:ring-0 cursor-pointer focus:cursor-text hover:text-[#22c55e] focus:text-[#22c55e] transition-colors p-0 m-0"
                   title={`Editar goles de ${awayTeam?.name || 'Visitante'}`}
                 />
               ) : (
@@ -327,8 +321,21 @@ export const MatchDetailView: React.FC = () => {
               )}
             </div>
 
-            {/* Selector de estado Terminado / Programado con la estética de la web */}
-            {userRole === 'editor' ? (
+            {/* Estado abajo: Finalizado / En Vivo / Hora programada */}
+            <div className="text-xs sm:text-sm text-gray-200 font-medium tracking-wide mt-1">
+              {match.status === 'live' || match.status === 'halftime' ? (
+                <span className="text-[#ef4444] font-black animate-pulse">
+                  {match.status === 'halftime' ? 'Entretiempo' : `${match.currentMinute || 23}'`}
+                </span>
+              ) : match.status === 'finished' ? (
+                <span>Finalizado</span>
+              ) : (
+                <span className="text-gray-400">{match.time || 'Programado'}</span>
+              )}
+            </div>
+
+            {/* Selector de estado Terminado / Programado para editores */}
+            {userRole === 'editor' && (
               <div className="mt-3 flex items-center bg-[#07160e] p-1 rounded-xl border border-[#1f5434]/60 shadow-inner">
                 <button
                   type="button"
@@ -351,15 +358,11 @@ export const MatchDetailView: React.FC = () => {
                       ? 'bg-[#1b4d30] text-[#22c55e] border border-[#22c55e]/40 shadow-xs font-black'
                       : 'text-gray-400 hover:text-gray-200 hover:bg-[#122e1e]'
                   }`}
-                  title="Marcar como terminado (fija 90 min y actualiza posiciones)"
+                  title="Marcar como terminado y actualiza posiciones"
                 >
                   <span className={`w-1.5 h-1.5 rounded-full ${match.status === 'finished' ? 'bg-[#22c55e]' : 'bg-gray-500'}`}></span>
                   <span>Terminado</span>
                 </button>
-              </div>
-            ) : (
-              <div className="text-xs text-[#22c55e] font-extrabold mt-2">
-                {match.periodDescription || (match.status === 'finished' ? 'Finalizado' : match.status === 'live' ? 'En Vivo' : 'Programado')}
               </div>
             )}
 

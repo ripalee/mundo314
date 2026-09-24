@@ -41,8 +41,8 @@ export const MatchRow: React.FC<MatchRowProps> = ({ match }) => {
     >
       {/* Fila Principal de Partido: Estructura 100% Simétrica */}
       <div className="flex items-center">
-        {/* Columna Izquierda: Minuto en vivo / Hora / Final (Ancho fijo simétrico) */}
-        <div className="w-14 sm:w-16 flex-shrink-0 text-center flex flex-col justify-center items-center">
+        {/* Columna Izquierda: Minuto en vivo / Hora / Finalizado (Ancho fijo simétrico) */}
+        <div className="w-16 sm:w-20 flex-shrink-0 text-center flex flex-col justify-center items-center">
           {isLive ? (
             <span className="text-xs font-black text-[#ef4444] animate-pulse">
               {match.status === 'halftime' ? 'ET' : `${match.currentMinute || 20}'`}
@@ -99,7 +99,7 @@ export const MatchRow: React.FC<MatchRowProps> = ({ match }) => {
         </div>
 
         {/* Columna Derecha: Canal de TV / Indicador Simétrico y Clásico */}
-        <div className="w-14 sm:w-16 flex-shrink-0 text-center flex flex-col items-center justify-center space-y-0.5">
+        <div className="w-16 sm:w-20 flex-shrink-0 text-center flex flex-col items-center justify-center space-y-0.5">
           {match.isClassic && (
             <span className="text-[8px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded-md font-black uppercase tracking-wider flex items-center space-x-0.5 shadow-xs">
               <Flame className="w-2.5 h-2.5 fill-current text-amber-400" />
@@ -120,7 +120,7 @@ export const MatchRow: React.FC<MatchRowProps> = ({ match }) => {
       {hasGoals && (
         <div className="mt-1 flex items-start text-[11px] text-[#9fc7af]">
           {/* Espaciador izquierdo igual a la columna de estado */}
-          <div className="w-14 sm:w-16 flex-shrink-0" />
+          <div className="w-16 sm:w-20 flex-shrink-0" />
 
           {/* Goles alineados con el grid central */}
           <div className="flex-1 grid grid-cols-[1fr_auto_1fr] gap-1.5 sm:gap-2 px-1 min-w-0">
@@ -147,7 +147,7 @@ export const MatchRow: React.FC<MatchRowProps> = ({ match }) => {
           </div>
 
           {/* Espaciador derecho igual a la columna de TV */}
-          <div className="w-14 sm:w-16 flex-shrink-0" />
+          <div className="w-16 sm:w-20 flex-shrink-0" />
         </div>
       )}
     </div>
