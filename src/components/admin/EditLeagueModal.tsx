@@ -14,7 +14,9 @@ import {
   Globe, 
   Shield, 
   Settings, 
-  Flame 
+  Flame,
+  Plus,
+  Trash2
 } from 'lucide-react';
 
 const POPULAR_COUNTRIES = [
@@ -174,6 +176,51 @@ export const EditLeagueModal: React.FC = () => {
     setSelectedTeamForEdit(null);
   };
 
+  // Añadir un nuevo club a la liga
+  const handleAddNewTeam = () => {
+    const nextSlot = currentLeague.teams.length + 1;
+    const newTeamId = `team_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const newTeam: Team = {
+      id: newTeamId,
+      name: `Nuevo Club ${nextSlot}`,
+      shortName: `NC${nextSlot}`,
+      shield: 'default',
+      primaryColor: '#166534',
+      secondaryColor: '#ffffff',
+      stadium: `Estadio del Club ${nextSlot}`,
+      players: []
+    };
+
+    const updatedLeague: League = {
+      ...currentLeague,
+      teams: [...currentLeague.teams, newTeam]
+    };
+    updateLeague(updatedLeague);
+    setSelectedTeamForEdit(newTeam);
+  };
+
+  // Eliminar un club de la liga
+  const handleRemoveTeam = (teamId: string, teamName: string) => {
+    if (currentLeague.teams.length <= 2) {
+      alert('La liga debe tener al menos 2 equipos.');
+      return;
+    }
+    if (!confirm(`¿Eliminar al equipo "${teamName}" de esta liga?`)) return;
+
+    const updatedTeams = currentLeague.teams.filter(t => t.id !== teamId);
+    const updatedLeague: League = {
+      ...currentLeague,
+      teams: updatedTeams
+    };
+    updateLeague(updatedLeague);
+  };
+
+  // Finalizar y Guardar Todo
+  const handleFinalizeAndClose = () => {
+    handleSaveLeagueGeneral();
+    closeEditLeagueModal();
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 select-none overflow-y-auto">
       <div className="bg-[#0b1f14] border border-[#1f5434]/60 w-full max-w-4xl rounded-3xl shadow-2xl flex flex-col max-h-[92vh] text-white overflow-hidden animate-fadeIn">
@@ -313,14 +360,25 @@ export const EditLeagueModal: React.FC = () => {
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setShowQuickPaste(!showQuickPaste)}
-                className="px-3 py-1.5 bg-[#143d26] hover:bg-[#1a4f32] text-[#22c55e] font-bold text-xs rounded-xl flex items-center space-x-1.5 transition-all border border-[#245f3c]/60 shrink-0 shadow-xs"
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span>Pegar Lista de Clubes</span>
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={handleAddNewTeam}
+                  className="px-3.5 py-1.5 bg-[#22c55e] hover:bg-[#16a34a] text-black font-extrabold text-xs rounded-xl flex items-center space-x-1.5 transition-all shadow-sm cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Añadir Equipo</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowQuickPaste(!showQuickPaste)}
+                  className="px-3 py-1.5 bg-[#143d26] hover:bg-[#1a4f32] text-[#22c55e] font-bold text-xs rounded-xl flex items-center space-x-1.5 transition-all border border-[#245f3c]/60 shrink-0 shadow-xs cursor-pointer"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Pegar Lista de Clubes</span>
+                </button>
+              </div>
             </div>
 
             {/* Panel de Pegado Rápido */}
@@ -421,14 +479,27 @@ export const EditLeagueModal: React.FC = () => {
                         )}
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => setSelectedTeamForEdit(team)}
-                        className="px-3.5 py-1.5 bg-[#18442b] hover:bg-[#205939] text-[#22c55e] hover:text-white border border-[#22c55e]/40 rounded-xl font-extrabold text-xs transition-all flex items-center space-x-1.5 shadow-xs"
-                      >
-                        <Settings className="w-3.5 h-3.5" />
-                        <span>Gestionar Club</span>
-                      </button>
+                      <div className="flex items-center space-x-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedTeamForEdit(team)}
+                          className="px-3.5 py-1.5 bg-[#18442b] hover:bg-[#205939] text-[#22c55e] hover:text-white border border-[#22c55e]/40 rounded-xl font-extrabold text-xs transition-all flex items-center space-x-1.5 shadow-xs cursor-pointer"
+                        >
+                          <Settings className="w-3.5 h-3.5" />
+                          <span>Gestionar Club</span>
+                        </button>
+
+                        {currentLeague.teams.length > 2 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveTeam(team.id, team.name)}
+                            className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-950/40 rounded-xl transition-colors border border-transparent hover:border-red-500/30 cursor-pointer"
+                            title={`Eliminar "${team.name}" de la liga`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -441,7 +512,7 @@ export const EditLeagueModal: React.FC = () => {
             <button
               type="button"
               onClick={handleRegenerateFixture}
-              className="px-4 py-2 bg-[#143622] hover:bg-[#1a432b] text-amber-300 border border-amber-500/40 font-bold text-xs rounded-xl flex items-center space-x-1.5 transition-colors shadow-xs"
+              className="px-4 py-2 bg-[#143622] hover:bg-[#1a432b] text-amber-300 border border-amber-500/40 font-bold text-xs rounded-xl flex items-center space-x-1.5 transition-colors shadow-xs cursor-pointer"
               title="Recrea todas las fechas del torneo desde cero con algoritmo Berger"
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -450,8 +521,8 @@ export const EditLeagueModal: React.FC = () => {
 
             <button
               type="button"
-              onClick={closeEditLeagueModal}
-              className="px-6 py-2 bg-[#22c55e] hover:bg-[#16a34a] text-black font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center space-x-1.5"
+              onClick={handleFinalizeAndClose}
+              className="px-6 py-2 bg-[#22c55e] hover:bg-[#16a34a] text-black font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center space-x-1.5 cursor-pointer"
             >
               <CheckCircle2 className="w-4 h-4" />
               <span>Finalizar y Guardar Cambios</span>

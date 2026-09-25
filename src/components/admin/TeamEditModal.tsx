@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Team, TeamTrophy } from '../../types/team';
 import { TeamShield } from '../common/TeamShield';
+import { compressImageFile } from '../../utils/imageCompressor';
 import { 
   X, 
   Upload, 
@@ -13,7 +14,8 @@ import {
   Landmark,
   BookOpen,
   Trophy,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Loader2
 } from 'lucide-react';
 
 interface TeamEditModalProps {
@@ -42,47 +44,45 @@ export const TeamEditModal: React.FC<TeamEditModalProps> = ({
   const [stadiumImage, setStadiumImage] = useState(team.stadiumImage || '');
   const [history, setHistory] = useState(team.history || '');
 
+  // Estados de compresión de imágenes
+  const [isProcessingShield, setIsProcessingShield] = useState(false);
+  const [isProcessingStadium, setIsProcessingStadium] = useState(false);
+
   // Palmarés / Títulos
   const [palmares, setPalmares] = useState<TeamTrophy[]>(team.palmares || []);
   const [newTrophyTitle, setNewTrophyTitle] = useState('');
   const [newTrophyCount, setNewTrophyCount] = useState<number>(1);
 
-  // Subir imagen para escudo personalizado (Data URL Base64)
-  const handleShieldUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Subir imagen para escudo personalizado (comprimido automáticamente a max 256x256)
+  const handleShieldUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 3 * 1024 * 1024) {
-      alert('La imagen es demasiado pesada. El tamaño máximo recomendado es 3 MB.');
-      return;
+    try {
+      setIsProcessingShield(true);
+      const compressed = await compressImageFile(file, 256, 256, 0.85);
+      setShield(compressed);
+    } catch (_) {
+      alert('No se pudo procesar la imagen del escudo. Intenta con otra imagen.');
+    } finally {
+      setIsProcessingShield(false);
     }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (typeof event.target?.result === 'string') {
-        setShield(event.target.result);
-      }
-    };
-    reader.readAsDataURL(file);
   };
 
-  // Subir imagen para el estadio (Data URL Base64)
-  const handleStadiumImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Subir imagen para el estadio (comprimido automáticamente a max 800x500)
+  const handleStadiumImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert('La foto del estadio es muy pesada. El tamaño máximo recomendado es 5 MB.');
-      return;
+    try {
+      setIsProcessingStadium(true);
+      const compressed = await compressImageFile(file, 800, 500, 0.75);
+      setStadiumImage(compressed);
+    } catch (_) {
+      alert('No se pudo procesar la foto del estadio. Intenta con otra imagen.');
+    } finally {
+      setIsProcessingStadium(false);
     }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (typeof event.target?.result === 'string') {
-        setStadiumImage(event.target.result);
-      }
-    };
-    reader.readAsDataURL(file);
   };
 
   // Añadir un nuevo título al palmarés
@@ -191,14 +191,24 @@ export const TeamEditModal: React.FC<TeamEditModalProps> = ({
                 </div>
 
                 <label className="w-full py-1.5 px-3 bg-[#18442b] hover:bg-[#205939] text-[#22c55e] hover:text-white border border-[#22c55e]/40 rounded-xl font-extrabold text-[11px] cursor-pointer flex items-center justify-center space-x-1.5 transition-colors shadow-xs">
-                  <Upload className="w-3.5 h-3.5" />
-                  <span>Subir PNG/JPG</span>
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    className="hidden" 
-                    onChange={handleShieldUpload} 
-                  />
+                  {isProcessingShield ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Optimizando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Subir PNG/JPG</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={handleShieldUpload} 
+                        disabled={isProcessingShield}
+                      />
+                    </>
+                  )}
                 </label>
 
                 {shield && shield !== 'default' && (
@@ -340,14 +350,24 @@ export const TeamEditModal: React.FC<TeamEditModalProps> = ({
                     Foto / Imagen del Estadio:
                   </label>
                   <label className="w-full py-2 px-3 bg-[#18442b] hover:bg-[#205939] text-[#22c55e] hover:text-white border border-[#22c55e]/40 rounded-xl font-extrabold text-xs cursor-pointer flex items-center justify-center space-x-2 transition-colors shadow-xs">
-                    <ImageIcon className="w-4 h-4" />
-                    <span>{stadiumImage ? 'Cambiar Foto del Estadio' : 'Subir Foto del Estadio desde PC'}</span>
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      className="hidden" 
-                      onChange={handleStadiumImageUpload} 
-                    />
+                    {isProcessingStadium ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Optimizando foto del estadio...</span>
+                      </>
+                    ) : (
+                      <>
+                        <ImageIcon className="w-4 h-4" />
+                        <span>{stadiumImage ? 'Cambiar Foto del Estadio' : 'Subir Foto del Estadio desde PC'}</span>
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          onChange={handleStadiumImageUpload} 
+                          disabled={isProcessingStadium}
+                        />
+                      </>
+                    )}
                   </label>
 
                   {stadiumImage && (

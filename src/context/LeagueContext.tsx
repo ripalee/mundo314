@@ -564,6 +564,10 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const saveTimeoutRef = useRef<any>(null);
   const [cloudSyncStatus, setCloudSyncStatus] = useState<'connected' | 'not_configured' | 'syncing' | 'error'>('syncing');
 
+  const recordLocalEdit = () => {
+    lastLocalEditTimeRef.current = Date.now();
+  };
+
   const syncFromCloud = useCallback(async () => {
     try {
       const res = await fetch('/api/data', { cache: 'no-store' });
@@ -575,17 +579,33 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (json.ok) {
         setCloudSyncStatus('connected');
         if (json.data) {
-          // Si el editor realizó cambios locales hace menos de 7 segundos, no sobreescribir su pantalla
+          // Si el usuario realizó cambios locales hace menos de 25 segundos, nunca sobreescribir su pantalla
           const timeSinceEdit = Date.now() - lastLocalEditTimeRef.current;
-          if (userRole === 'editor' && timeSinceEdit < 7000) {
+          if (timeSinceEdit < 25000) {
             return;
           }
 
           const { leagues: cL, managers: cM, teams: cT, accounts: cA, globalYear: cY } = json.data;
           isApplyingCloudUpdateRef.current = true;
-          if (Array.isArray(cL)) setLeagues(cL);
+
+          if (Array.isArray(cL) && cL.length > 0) {
+            setLeagues(cL);
+          } else if (Array.isArray(cL) && cL.length === 0 && leagues.length > 0 && (userRole === 'editor' || isAdminAuthenticated)) {
+            pushToCloud();
+          } else if (Array.isArray(cL)) {
+            setLeagues(cL);
+          }
+
           if (Array.isArray(cM)) setManagers(cM);
-          if (Array.isArray(cT)) setTeams(cT);
+
+          if (Array.isArray(cT) && cT.length > 0) {
+            setTeams(cT);
+          } else if (Array.isArray(cT) && cT.length === 0 && teams.length > 0 && (userRole === 'editor' || isAdminAuthenticated)) {
+            pushToCloud();
+          } else if (Array.isArray(cT)) {
+            setTeams(cT);
+          }
+
           if (Array.isArray(cA)) {
             const normalizedAccounts = cA.map(a => 
               isEditorUsername(a.username) ? { ...a, role: 'editor' as const } : a
@@ -601,20 +621,9 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           }, 800);
         } else if (json.data === null) {
           // Si la base de datos está vacía y el usuario es editor, inicializamos la nube con los datos actuales
-          const savedCurrentUser = localStorage.getItem(STORAGE_KEY_AUTH_CURRENT_USER);
-          const isEditor = savedCurrentUser && JSON.parse(savedCurrentUser)?.role === 'editor';
-          if (isEditor) {
-            fetch('/api/data', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                leagues,
-                managers,
-                teams,
-                accounts,
-                globalYear,
-              }),
-            }).catch(() => {});
+          const isEditor = userRole === 'editor' || isAdminAuthenticated;
+          if (isEditor && (leagues.length > 0 || teams.length > 0)) {
+            pushToCloud();
           }
         }
       } else {
@@ -629,7 +638,7 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } finally {
       isHydratedFromCloudRef.current = true;
     }
-  }, [leagues, managers, teams, accounts, globalYear, userRole]);
+  }, [leagues, managers, teams, accounts, globalYear, userRole, isAdminAuthenticated]);
 
   // Consultar la nube al montar y periódicamente cada 8 segundos o al volver a la ventana
   useEffect(() => {
@@ -655,39 +664,55 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
   }, [syncFromCloud]);
 
-  // Guardar en la nube automáticamente cuando el editor realiza cambios
+  // Función directa para guardar en la nube de forma inmediata al realizar cualquier cambio
+  const pushToCloud = useCallback((customPayload?: {
+    leagues?: League[];
+    managers?: Manager[];
+    teams?: Team[];
+    accounts?: StoredAccount[];
+    globalYear?: string;
+  }) => {
+    recordLocalEdit();
+    if (userRole !== 'editor' && !isAdminAuthenticated) return;
+
+    const payload = {
+      leagues: customPayload?.leagues ?? leagues,
+      managers: customPayload?.managers ?? managers,
+      teams: customPayload?.teams ?? teams,
+      accounts: customPayload?.accounts ?? accounts,
+      globalYear: customPayload?.globalYear ?? globalYear,
+    };
+
+    fetch('/api/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    .then(res => res.json())
+    .then(json => {
+      if (json.ok) {
+        setCloudSyncStatus('connected');
+      } else if (json.error === 'NO_BINDING_CONFIGURED') {
+        setCloudSyncStatus('not_configured');
+      }
+    })
+    .catch((err) => {
+      console.warn('Error en pushToCloud:', err);
+    });
+  }, [leagues, managers, teams, accounts, globalYear, userRole, isAdminAuthenticated]);
+
+  // Guardar en la nube automáticamente cuando el editor realiza cambios en el estado
   const triggerCloudSave = useCallback(() => {
-    if (!isHydratedFromCloudRef.current || userRole !== 'editor' || isApplyingCloudUpdateRef.current) return;
+    if (!isHydratedFromCloudRef.current || (userRole !== 'editor' && !isAdminAuthenticated)) return;
 
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
 
     saveTimeoutRef.current = setTimeout(() => {
-      fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          leagues,
-          managers,
-          teams,
-          accounts,
-          globalYear,
-        }),
-      })
-      .then(res => res.json())
-      .then(json => {
-        if (json.ok) {
-          setCloudSyncStatus('connected');
-        } else if (json.error === 'NO_BINDING_CONFIGURED') {
-          setCloudSyncStatus('not_configured');
-        }
-      })
-      .catch((err) => {
-        console.warn('Error sincronizando con la nube:', err);
-      });
+      pushToCloud();
     }, 200);
-  }, [leagues, managers, teams, accounts, globalYear, userRole]);
+  }, [pushToCloud, userRole, isAdminAuthenticated]);
 
   useEffect(() => {
     triggerCloudSave();
@@ -798,7 +823,7 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const updateMatch = (updatedMatch: Match) => {
-    lastLocalEditTimeRef.current = Date.now();
+    recordLocalEdit();
     const sanitizedMatch: Match = updatedMatch.status === 'finished'
       ? {
           ...updatedMatch,
@@ -807,15 +832,16 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       : updatedMatch;
 
-    setLeagues(prevLeagues => 
-      prevLeagues.map(l => ({
-        ...l,
-        tournaments: l.tournaments.map(t => ({
-          ...t,
-          matches: t.matches.map(m => m.id === sanitizedMatch.id ? sanitizedMatch : m)
-        }))
+    const newLeagues = leagues.map(l => ({
+      ...l,
+      tournaments: l.tournaments.map(t => ({
+        ...t,
+        matches: t.matches.map(m => m.id === sanitizedMatch.id ? sanitizedMatch : m)
       }))
-    );
+    }));
+
+    setLeagues(newLeagues);
+    pushToCloud({ leagues: newLeagues });
   };
 
   const addGoalToMatch = (matchId: string, teamId: string, scorerName: string, minute: number, assistName?: string) => {
@@ -999,25 +1025,29 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const createCustomLeague = (newLeague: League, newTeams?: Team[]) => {
+    recordLocalEdit();
+    let combinedTeams = [...teams];
     if (newTeams && newTeams.length > 0) {
-      setTeams(prev => {
-        const existingIds = new Set(prev.map(t => t.id));
-        const toAdd = newTeams.filter(t => !existingIds.has(t.id));
-        return [...prev, ...toAdd];
-      });
+      const existingIds = new Set(teams.map(t => t.id));
+      const toAdd = newTeams.filter(t => !existingIds.has(t.id));
+      combinedTeams = [...teams, ...toAdd];
+      setTeams(combinedTeams);
     }
 
-    setLeagues(prev => [...prev, newLeague]);
+    const newLeagues = [...leagues, newLeague];
+    setLeagues(newLeagues);
     setSelectedSectionLeagueId(newLeague.id);
     setActiveLeagueId(newLeague.id);
     setActiveTournamentId(newLeague.activeTournamentId);
     setViewMode('league_section');
     setShowAdminModal(false);
     openEditLeagueModal(newLeague.id);
+    pushToCloud({ leagues: newLeagues, teams: combinedTeams });
   };
 
   const updateTeamInLeague = (leagueId: string, updatedTeam: Team) => {
-    setLeagues(prevLeagues => prevLeagues.map(l => {
+    recordLocalEdit();
+    const newLeagues = leagues.map(l => {
       if (l.id !== leagueId) return l;
       const newTeams = l.teams.map(t => t.id === updatedTeam.id ? updatedTeam : t);
       const newTournaments = l.tournaments.map(t => ({
@@ -1039,30 +1069,40 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         teams: newTeams,
         tournaments: newTournaments
       };
-    }));
+    });
 
-    setTeams(prevTeams => prevTeams.map(t => t.id === updatedTeam.id ? updatedTeam : t));
+    const newTeams = teams.map(t => t.id === updatedTeam.id ? updatedTeam : t);
+    if (!newTeams.some(t => t.id === updatedTeam.id)) {
+      newTeams.push(updatedTeam);
+    }
+
+    setLeagues(newLeagues);
+    setTeams(newTeams);
+    pushToCloud({ leagues: newLeagues, teams: newTeams });
   };
 
   const updateLeague = (updatedLeague: League) => {
-    setLeagues(prev => prev.map(l => l.id === updatedLeague.id ? updatedLeague : l));
+    recordLocalEdit();
+    const newLeagues = leagues.map(l => l.id === updatedLeague.id ? updatedLeague : l);
+    setLeagues(newLeagues);
+
     // Sincronizar equipos de la liga en el estado general de teams
-    setTeams(prev => {
-      const updatedMap = new Map(updatedLeague.teams.map(t => [t.id, t]));
-      const existingIds = new Set(prev.map(t => t.id));
-      const merged = prev.map(t => updatedMap.get(t.id) || t);
-      // Agregar los que sean nuevos
-      updatedLeague.teams.forEach(t => {
-        if (!existingIds.has(t.id)) merged.push(t);
-      });
-      return merged;
+    const updatedMap = new Map(updatedLeague.teams.map(t => [t.id, t]));
+    const existingIds = new Set(teams.map(t => t.id));
+    const merged = teams.map(t => updatedMap.get(t.id) || t);
+    // Agregar los que sean nuevos
+    updatedLeague.teams.forEach(t => {
+      if (!existingIds.has(t.id)) merged.push(t);
     });
+    setTeams(merged);
+    pushToCloud({ leagues: newLeagues, teams: merged });
   };
 
   const deleteLeague = (leagueId: string) => {
-    setLeagues(prev => prev.filter(l => l.id !== leagueId));
+    recordLocalEdit();
+    const remaining = leagues.filter(l => l.id !== leagueId);
+    setLeagues(remaining);
     if (activeLeagueId === leagueId || selectedSectionLeagueId === leagueId) {
-      const remaining = leagues.filter(l => l.id !== leagueId);
       if (remaining.length > 0) {
         setActiveLeagueId(remaining[0].id);
         setActiveTournamentId(remaining[0].activeTournamentId);
@@ -1074,25 +1114,33 @@ export const LeagueProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setViewMode('home');
       }
     }
+    pushToCloud({ leagues: remaining });
   };
 
   const createCustomTeam = (newTeam: Team) => {
-    setTeams(prev => {
-      if (prev.some(t => t.id === newTeam.id)) return prev;
-      return [...prev, newTeam];
-    });
+    recordLocalEdit();
+    const newTeams = teams.some(t => t.id === newTeam.id) ? teams : [...teams, newTeam];
+    setTeams(newTeams);
+    pushToCloud({ teams: newTeams });
   };
 
   const updateTeam = (updatedTeam: Team) => {
-    setTeams(prev => prev.map(t => t.id === updatedTeam.id ? updatedTeam : t));
-    setLeagues(prev => prev.map(l => ({
+    recordLocalEdit();
+    const newTeams = teams.map(t => t.id === updatedTeam.id ? updatedTeam : t);
+    const newLeagues = leagues.map(l => ({
       ...l,
       teams: l.teams.map(t => t.id === updatedTeam.id ? updatedTeam : t)
-    })));
+    }));
+    setTeams(newTeams);
+    setLeagues(newLeagues);
+    pushToCloud({ teams: newTeams, leagues: newLeagues });
   };
 
   const deleteTeam = (teamId: string) => {
-    setTeams(prev => prev.filter(t => t.id !== teamId));
+    recordLocalEdit();
+    const newTeams = teams.filter(t => t.id !== teamId);
+    setTeams(newTeams);
+    pushToCloud({ teams: newTeams });
   };
 
   const resetAllData = () => {
