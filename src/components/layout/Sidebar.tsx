@@ -173,6 +173,9 @@ export const Sidebar: React.FC = () => {
                         >
                           <div className="flex items-center space-x-1.5 truncate">
                             <span className="text-gray-500 text-[10px]">└</span>
+                            {l.logo && (
+                              <img src={l.logo} alt="" className="w-3.5 h-3.5 object-contain rounded shrink-0" />
+                            )}
                             <span className="truncate">{l.name}</span>
                           </div>
                           <ChevronRight className="w-3 h-3 text-gray-400 flex-shrink-0" />

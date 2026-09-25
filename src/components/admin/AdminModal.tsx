@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLeague } from '../../context/LeagueContext';
 import { LeagueFormat } from '../../types/league';
 import { 
   buildCustomLeague, 
   TeamSlotAssignment 
 } from '../../engine/fixtureGenerator';
+import { compressImageFile } from '../../utils/imageCompressor';
 import { 
   Lock, 
   Trophy, 
@@ -15,7 +16,8 @@ import {
   Plus,
   Trash2,
   Globe,
-  Edit2
+  Edit2,
+  Upload
 } from 'lucide-react';
 
 const POPULAR_COUNTRIES = [
@@ -82,6 +84,8 @@ export const AdminModal: React.FC = () => {
   const [leagueName, setLeagueName] = useState('LaLiga EA Sports');
   const [seasonYear, setSeasonYear] = useState(globalYear || '1974');
   const [selectedFlag, setSelectedFlag] = useState('🇪🇸');
+  const [leagueLogo, setLeagueLogo] = useState('');
+  const logoFileInputRef = useRef<HTMLInputElement>(null);
   const [numTeams, setNumTeams] = useState<number>(10);
   const [tournamentFormat, setTournamentFormat] = useState<LeagueFormat>('double_round');
 
@@ -107,6 +111,18 @@ export const AdminModal: React.FC = () => {
       if (found) {
         setSelectedFlag(found.flag);
       }
+    }
+  };
+
+  // Subir y comprimir logo de la liga al crear
+  const handleLogoFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const compressed = await compressImageFile(file, 256, 256, 0.85);
+      setLeagueLogo(compressed);
+    } catch {
+      alert('No se pudo procesar la imagen del logo.');
     }
   };
 
@@ -169,6 +185,7 @@ export const AdminModal: React.FC = () => {
       leagueName: leagueName.trim(),
       country: finalCountry,
       flag: selectedFlag,
+      logo: leagueLogo.trim() || undefined,
       seasonYear,
       format: tournamentFormat,
       numTeams,
@@ -355,6 +372,15 @@ export const AdminModal: React.FC = () => {
                     <span>Configuración de la Nueva Liga</span>
                   </div>
 
+                  {/* Hidden file input for logo */}
+                  <input
+                    type="file"
+                    ref={logoFileInputRef}
+                    accept="image/*"
+                    onChange={handleLogoFileUpload}
+                    className="hidden"
+                  />
+
                   {/* Fila Principal: País, Nombre de la Liga y Temporada */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {/* Selector de País */}
@@ -394,7 +420,7 @@ export const AdminModal: React.FC = () => {
                     {/* Temporada y Emblema */}
                     <div>
                       <label className="text-[11px] text-gray-300 font-bold block mb-1">
-                        Temporada:
+                        Temporada y Bandera:
                       </label>
                       <div className="flex items-center space-x-2">
                         <input
@@ -404,12 +430,19 @@ export const AdminModal: React.FC = () => {
                           className="w-full bg-[#081a10] border border-[#1f5434]/60 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#22c55e]"
                         />
                         <div className="flex items-center space-x-1 shrink-0">
+                          <input
+                            type="text"
+                            value={selectedFlag}
+                            onChange={(e) => setSelectedFlag(e.target.value)}
+                            className="w-10 bg-[#081a10] border border-[#1f5434]/60 rounded-lg py-1.5 text-xs text-center text-white focus:outline-none focus:border-[#22c55e] shrink-0"
+                            title="Emoji de bandera o emblema"
+                          />
                           {['🏆', '⭐', '⚽'].map(flag => (
                             <button
                               key={flag}
                               type="button"
                               onClick={() => setSelectedFlag(flag)}
-                              className={`w-7 h-7 rounded-lg text-xs flex items-center justify-center transition-all ${
+                              className={`w-7 h-7 rounded-lg text-xs flex items-center justify-center transition-all shrink-0 ${
                                 selectedFlag === flag 
                                   ? 'bg-[#22c55e] text-black shadow-xs font-bold' 
                                   : 'bg-[#081a10] text-gray-300 hover:bg-[#143823] border border-[#1f5434]/40'
@@ -425,19 +458,98 @@ export const AdminModal: React.FC = () => {
 
                   {/* Input si eligió país personalizado */}
                   {isCustomCountry && (
-                    <div className="pt-1">
-                      <label className="text-[11px] text-gray-300 font-bold block mb-1">
-                        Nombre del País Personalizado:
-                      </label>
-                      <input
-                        type="text"
-                        value={customCountryName}
-                        onChange={(e) => setCustomCountryName(e.target.value)}
-                        placeholder="Ej. Japón, Bélgica, etc."
-                        className="w-full sm:w-1/2 bg-[#081a10] border border-[#1f5434]/60 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#22c55e]"
-                      />
+                    <div className="pt-1 bg-[#081a10] border border-[#1f5434]/40 p-2.5 rounded-xl space-y-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                        <div className="flex-1">
+                          <label className="text-[11px] text-gray-300 font-bold block mb-1">
+                            Nombre del País Personalizado:
+                          </label>
+                          <input
+                            type="text"
+                            value={customCountryName}
+                            onChange={(e) => setCustomCountryName(e.target.value)}
+                            placeholder="Ej. Japón, Bélgica, País Vasco, etc."
+                            className="w-full bg-[#040e08] border border-[#1f5434]/60 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#22c55e]"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-gray-300 font-bold block mb-1">
+                            Bandera del País:
+                          </label>
+                          <div className="flex items-center space-x-1.5">
+                            <input
+                              type="text"
+                              value={selectedFlag}
+                              onChange={(e) => setSelectedFlag(e.target.value)}
+                              placeholder="🏳️"
+                              className="w-12 bg-[#040e08] border border-[#1f5434]/60 rounded-xl px-1.5 py-2 text-sm text-center text-white focus:outline-none focus:border-[#22c55e]"
+                              title="Pega cualquier emoji de bandera (ej. 🇯🇵, 🇧🇪, 🇪🇨, 🇵🇾)"
+                            />
+                            <div className="flex items-center space-x-1">
+                              {['🏳️', '🏴', '🚩', '🌍', '🏆'].map(f => (
+                                <button
+                                  key={f}
+                                  type="button"
+                                  onClick={() => setSelectedFlag(f)}
+                                  className={`w-7 h-7 rounded-lg text-xs flex items-center justify-center transition-all ${
+                                    selectedFlag === f
+                                      ? 'bg-[#22c55e] text-black shadow-xs font-bold'
+                                      : 'bg-[#040e08] text-gray-300 hover:bg-[#143823] border border-[#1f5434]/40'
+                                  }`}
+                                >
+                                  {f}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )}
+
+                  {/* Logo Oficial de la Liga con subida y URL */}
+                  <div className="pt-1">
+                    <label className="text-[11px] text-gray-300 font-bold block mb-1">
+                      Logo / Escudo Oficial de la Liga (Opcional):
+                    </label>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => logoFileInputRef.current?.click()}
+                        className="px-3 py-1.5 bg-[#143d26] hover:bg-[#1a4f32] text-[#22c55e] border border-[#22c55e]/40 rounded-xl font-bold text-xs flex items-center space-x-1.5 transition-all shadow-xs shrink-0 cursor-pointer whitespace-nowrap"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Subir Imagen</span>
+                      </button>
+
+                      <input
+                        type="text"
+                        value={leagueLogo}
+                        onChange={(e) => setLeagueLogo(e.target.value)}
+                        placeholder="O pega URL de la imagen del logo..."
+                        className="flex-1 min-w-[200px] bg-[#081a10] border border-[#1f5434]/60 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#22c55e] transition-colors"
+                        title="URL del logo o escudo oficial de la liga para la captura de X"
+                      />
+
+                      {leagueLogo && (
+                        <div className="flex items-center space-x-1.5 bg-[#081a10] border border-[#1f5434] p-1 rounded-xl shrink-0">
+                          <img
+                            src={leagueLogo}
+                            alt="Logo"
+                            className="w-7 h-7 object-contain rounded-lg bg-black/40"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setLeagueLogo('')}
+                            className="p-1 text-gray-400 hover:text-red-400 rounded-lg hover:bg-white/10"
+                            title="Quitar logo"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
                   {/* Formato de Competición en 3 tarjetas limpias */}
                   <div className="space-y-1.5 pt-1">

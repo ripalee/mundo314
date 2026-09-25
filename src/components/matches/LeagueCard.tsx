@@ -27,7 +27,15 @@ export const LeagueCard: React.FC<LeagueCardProps> = ({ league, matches }) => {
         className="bg-gradient-to-r from-[#143d26] via-[#1a4f32] to-[#143d26] px-3.5 py-2.5 flex items-center justify-between cursor-pointer border-b border-[#1f5434]/50 hover:bg-[#1e5235] transition-colors"
       >
         <div className="flex items-center space-x-2">
-          <span className="text-base">{league.flag}</span>
+          {league.logo ? (
+            <img 
+              src={league.logo} 
+              alt={league.name} 
+              className="w-4 h-4 object-contain rounded shrink-0" 
+            />
+          ) : (
+            <span className="text-base">{league.flag}</span>
+          )}
           <span className="text-xs font-black text-white uppercase tracking-wide">
             <span className="text-[#8eb89c]">{league.country}:</span> {league.name} {roundNumber ? `(${roundNumber})` : ''}
           </span>

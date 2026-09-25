@@ -14,76 +14,89 @@ export interface TeamSlotAssignment {
 }
 
 /**
- * Algoritmo Oficial de Tablas de Berger / Round-Robin (como Gesliga / FIDE)
+ * Algoritmo Oficial Canónico de Tablas de Berger / FIDE / Schurig
  * Garantiza:
  * 1. Todos juegan contra todos una sola vez por rueda sin repeticiones.
- * 2. Máxima alternancia de local/visitante posible (con sólo 1 doblete inevitable por equipo).
- * 3. En la segunda vuelta (ida y vuelta), se invierten estrictamente las localías.
+ * 2. Máxima alternancia de local/visitante posible en la rueda (a lo sumo 1 doblete inevitable por equipo).
+ * 3. Cero rachas de 3 partidos consecutivos de local o visitante (jamás HHH ni AAA).
  */
 export function generateBergerPairings(numTeams: number): { homeSlot: number; awaySlot: number }[][] {
   const n = numTeams % 2 === 0 ? numTeams : numTeams + 1;
-  const rounds: { homeSlot: number; awaySlot: number }[][] = [];
-  const N = n - 1;
   const half = n / 2;
+  const N = n - 1;
+  const rounds: { homeSlot: number; awaySlot: number }[][] = [];
 
-  for (let r = 0; r < N; r++) {
-    const roundMatches: { homeSlot: number; awaySlot: number }[] = [];
+  // Ronda 1: (1, n), (2, n-1), (3, n-2), ..., (half, half + 1)
+  let currPairs: { homeSlot: number; awaySlot: number }[] = [];
+  currPairs.push({ homeSlot: 1, awaySlot: n });
+  for (let i = 2; i <= half; i++) {
+    currPairs.push({ homeSlot: i, awaySlot: n - i + 1 });
+  }
+  rounds.push(currPairs);
 
-    // En las tablas oficiales, el equipo fijo (n) se enfrenta en la ronda r al rival pivote:
-    let pivotOpp: number;
-    let pivotHome: boolean;
+  const advance = (x: number): number => {
+    let res = x + half;
+    if (res > N) res -= N;
+    return res;
+  };
+
+  // Rondas 2 a N (r = 2 hasta n-1)
+  for (let r = 2; r <= n - 1; r++) {
+    const newPairs: { homeSlot: number; awaySlot: number }[] = [];
     if (r % 2 === 0) {
-      pivotOpp = r / 2;
-      pivotHome = true; // pivotOpp juega de local vs n
+      // Ronda par: n juega de local contra el avance del rival anterior
+      const prevOpp = currPairs[0].homeSlot;
+      const newOpp = advance(prevOpp);
+      newPairs.push({ homeSlot: n, awaySlot: newOpp });
     } else {
-      pivotOpp = (r - 1) / 2 + half;
-      pivotHome = false; // n juega de local vs pivotOpp
+      // Ronda impar: el rival juega de local contra n
+      const prevOpp = currPairs[0].awaySlot;
+      const newOpp = advance(prevOpp);
+      newPairs.push({ homeSlot: newOpp, awaySlot: n });
     }
 
-    if (pivotHome) {
-      roundMatches.push({ homeSlot: pivotOpp + 1, awaySlot: n });
-    } else {
-      roundMatches.push({ homeSlot: n, awaySlot: pivotOpp + 1 });
+    for (let k = 1; k < currPairs.length; k++) {
+      newPairs.push({
+        homeSlot: advance(currPairs[k].homeSlot),
+        awaySlot: advance(currPairs[k].awaySlot)
+      });
     }
 
-    // Los otros (n/2 - 1) partidos se distribuyen simétricamente alrededor de pivotOpp (módulo N)
-    for (let k = 1; k < half; k++) {
-      let t1 = (pivotOpp - k) % N;
-      if (t1 < 0) t1 += N;
-      let t2 = (pivotOpp + k) % N;
-
-      let home: number;
-      let away: number;
-      if (k % 2 === 1) {
-        if (pivotHome) {
-          home = t2 + 1;
-          away = t1 + 1;
-        } else {
-          home = t1 + 1;
-          away = t2 + 1;
-        }
-      } else {
-        if (pivotHome) {
-          home = t1 + 1;
-          away = t2 + 1;
-        } else {
-          home = t2 + 1;
-          away = t1 + 1;
-        }
-      }
-
-      roundMatches.push({ homeSlot: home, awaySlot: away });
-    }
-
-    // Filtrar si el número de equipos era impar (descanso para el equipo que jugaba vs n)
-    const validMatches = roundMatches.filter(
-      match => match.homeSlot <= numTeams && match.awaySlot <= numTeams
-    );
-
-    rounds.push(validMatches);
+    currPairs = newPairs;
+    rounds.push(currPairs);
   }
 
-  return rounds;
+  // Filtrar si el número de equipos era impar (descanso para el equipo que jugaba vs n)
+  return rounds.map(round =>
+    round.filter(match => match.homeSlot <= numTeams && match.awaySlot <= numTeams)
+  );
+}
+
+/**
+ * Genera la segunda rueda (vuelta) con localías invertidas y ordenación canónica balanceada.
+ * Aplicando la permutación [0, N - 1, 1, 2, ..., N - 2] sobre las fechas invertidas,
+ * se elimina completamente cualquier posibilidad de 3 partidos consecutivos de local o visitante.
+ */
+export function buildBalancedLeg2Pairings(
+  leg1: { homeSlot: number; awaySlot: number }[][]
+): { homeSlot: number; awaySlot: number }[][] {
+  const N = leg1.length;
+  if (N <= 1) {
+    return leg1.map(round =>
+      round.map(p => ({ homeSlot: p.awaySlot, awaySlot: p.homeSlot }))
+    );
+  }
+
+  const invertedRounds = leg1.map(round =>
+    round.map(p => ({ homeSlot: p.awaySlot, awaySlot: p.homeSlot }))
+  );
+
+  const perm: number[] = [0, N - 1];
+  for (let i = 1; i <= N - 2; i++) {
+    perm.push(i);
+  }
+
+  return perm.map(idx => invertedRounds[idx]);
 }
 
 /**
@@ -93,6 +106,7 @@ export function buildCustomLeague({
   leagueName,
   country = 'España',
   flag = '🏆',
+  logo,
   seasonYear = '2026/2027',
   format,
   numTeams,
@@ -103,6 +117,7 @@ export function buildCustomLeague({
   leagueName: string;
   country?: string;
   flag?: string;
+  logo?: string;
   seasonYear?: string;
   format: LeagueFormat;
   numTeams: number;
@@ -226,10 +241,8 @@ export function buildCustomLeague({
     // Rueda 1 (Ida)
     const leg1Matches = buildMatchesFromPairings(leg1Pairings, tournamentId, 0, 0);
 
-    // Rueda 2 (Vuelta - Localía invertida)
-    const leg2Pairings = leg1Pairings.map(round =>
-      round.map(p => ({ homeSlot: p.awaySlot, awaySlot: p.homeSlot }))
-    );
+    // Rueda 2 (Vuelta - Localía invertida y ordenación canónica balanceada anti-HHH/AAA)
+    const leg2Pairings = buildBalancedLeg2Pairings(leg1Pairings);
     const leg2Matches = buildMatchesFromPairings(
       leg2Pairings,
       tournamentId,
@@ -263,11 +276,9 @@ export function buildCustomLeague({
       matches: aperturaMatches
     });
 
-    // Clausura
+    // Clausura (Localía invertida y ordenación canónica balanceada)
     const clausuraId = `${leagueId}_clausura`;
-    const clausuraPairings = leg1Pairings.map(round =>
-      round.map(p => ({ homeSlot: p.awaySlot, awaySlot: p.homeSlot }))
-    );
+    const clausuraPairings = buildBalancedLeg2Pairings(leg1Pairings);
     const clausuraMatches = buildMatchesFromPairings(
       clausuraPairings,
       clausuraId,
@@ -293,6 +304,7 @@ export function buildCustomLeague({
     name: leagueName,
     country: country.trim() || 'General',
     flag,
+    logo: logo?.trim() || undefined,
     format,
     seasonYear,
     teams: participatingTeams,
@@ -304,5 +316,200 @@ export function buildCustomLeague({
   return {
     league: newLeague,
     newTeams: newTeamsToRegister
+  };
+}
+
+/**
+ * Resultado del análisis de fixture desde Gesliga o texto plano
+ */
+export interface ParseFixtureResult {
+  success: boolean;
+  totalRounds: number;
+  totalMatches: number;
+  matches: Match[];
+  unmappedLines: string[];
+  warnings: string[];
+}
+
+/**
+ * Analiza texto pegado desde Gesliga o calendarios en texto plano
+ * y genera los partidos completos del torneo vinculando a los clubes existentes.
+ */
+export function parseGesligaFixture({
+  text,
+  teams,
+  tournamentId,
+  leagueId,
+  startDateStr = new Date().toISOString().split('T')[0]
+}: {
+  text: string;
+  teams: Team[];
+  tournamentId: string;
+  leagueId: string;
+  startDateStr?: string;
+}): ParseFixtureResult {
+  const lines = text.split('\n');
+  const baseDate = new Date(startDateStr + 'T12:00:00');
+  const times = ['15:00', '17:15', '19:30', '21:30', '16:00', '18:30'];
+  const tvs: ('TNT' | 'TyC' | 'ESPN')[] = ['TNT', 'TyC', 'ESPN'];
+
+  // Helper para normalizar cadenas
+  const normalize = (str: string) =>
+    str
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim();
+
+  // Helper para localizar un equipo por nombre, sigla o número de slot (1..N)
+  const findTeam = (query: string): Team | null => {
+    const rawClean = query.trim();
+    if (!rawClean) return null;
+
+    // Si es un número (ej. "1 - 4" o slot 1)
+    const slotNum = parseInt(rawClean, 10);
+    if (!isNaN(slotNum) && slotNum >= 1 && slotNum <= teams.length && String(slotNum) === rawClean) {
+      return teams[slotNum - 1];
+    }
+
+    const norm = normalize(rawClean);
+
+    // 1. Coincidencia exacta de nombre o sigla
+    let match = teams.find(
+      t => normalize(t.name) === norm || (t.shortName && normalize(t.shortName) === norm)
+    );
+    if (match) return match;
+
+    // 2. Coincidencia parcial (subcadena)
+    match = teams.find(
+      t => normalize(t.name).includes(norm) || norm.includes(normalize(t.name))
+    );
+    if (match) return match;
+
+    if (rawClean.length >= 3) {
+      match = teams.find(t => t.shortName && normalize(t.shortName).includes(norm));
+      if (match) return match;
+    }
+
+    return null;
+  };
+
+  const matches: Match[] = [];
+  const unmappedLines: string[] = [];
+  const warnings: string[] = [];
+
+  let currentRound = 1;
+  let matchesInCurrentRound = 0;
+  const matchesPerRoundExpected = Math.max(1, Math.floor(teams.length / 2));
+
+  for (let idx = 0; idx < lines.length; idx++) {
+    const line = lines[idx].trim();
+    if (!line) {
+      // Línea vacía: si ya acumulamos partidos en esta fecha y viene otra sección
+      if (matchesInCurrentRound >= matchesPerRoundExpected) {
+        currentRound++;
+        matchesInCurrentRound = 0;
+      }
+      continue;
+    }
+
+    // Comprobar si es encabezado de fecha / jornada: "Jornada 1", "Fecha 2", "Round 3", "FECHA 1:"
+    const roundMatch = line.match(/^(?:jornada|fecha|ronda|round)\s*(\d+)/i);
+    if (roundMatch) {
+      currentRound = parseInt(roundMatch[1], 10);
+      matchesInCurrentRound = 0;
+      continue;
+    }
+
+    // Ignorar encabezados obvios de texto
+    if (/^(partidos|resultados|fixture|torneo|tabla)/i.test(line)) {
+      continue;
+    }
+
+    let homeStr = '';
+    let awayStr = '';
+    let homeScore: number | null = null;
+    let awayScore: number | null = null;
+    let status: 'scheduled' | 'finished' = 'scheduled';
+
+    // Intento 1: Línea con resultado numérico (ej. "Real Madrid 2 - 1 Barcelona" o "2:1")
+    const scoreMatch = line.match(/^(.+?)\s+(\d+)\s*[-:]\s*(\d+)\s+(.+)$/);
+    if (scoreMatch) {
+      homeStr = scoreMatch[1];
+      homeScore = parseInt(scoreMatch[2], 10);
+      awayScore = parseInt(scoreMatch[3], 10);
+      awayStr = scoreMatch[4];
+      status = 'finished';
+    } else {
+      // Intento 2: Separador vs, -, :, x (ej. "Barcelona vs Real Madrid" o "Barcelona - Real Madrid")
+      const parts = line.split(/\s+(?:vs\.?|x|-|:)\s+/i);
+      if (parts.length === 2) {
+        homeStr = parts[0];
+        awayStr = parts[1];
+      }
+    }
+
+    if (!homeStr || !awayStr) {
+      unmappedLines.push(line);
+      continue;
+    }
+
+    const homeTeam = findTeam(homeStr);
+    const awayTeam = findTeam(awayStr);
+
+    if (!homeTeam || !awayTeam) {
+      const missing = [];
+      if (!homeTeam) missing.push(`local: "${homeStr}"`);
+      if (!awayTeam) missing.push(`visitante: "${awayStr}"`);
+      warnings.push(`Línea ${idx + 1}: No se identificó ${missing.join(', ')}`);
+      unmappedLines.push(line);
+      continue;
+    }
+
+    if (homeTeam.id === awayTeam.id) {
+      warnings.push(`Línea ${idx + 1}: El equipo "${homeTeam.name}" no puede jugar contra sí mismo`);
+      unmappedLines.push(line);
+      continue;
+    }
+
+    // Crear partido
+    matchesInCurrentRound++;
+    const matchRound = currentRound;
+    const matchIndex = matches.filter(m => m.round === matchRound).length + 1;
+
+    const roundDate = new Date(baseDate);
+    roundDate.setDate(roundDate.getDate() + (matchRound - 1) * 7);
+    const dateStr = roundDate.toISOString().split('T')[0];
+
+    const isClassic = (Boolean(homeTeam.classicRivalId) && homeTeam.classicRivalId === awayTeam.id) ||
+                      (Boolean(awayTeam.classicRivalId) && awayTeam.classicRivalId === homeTeam.id);
+
+    matches.push({
+      id: `${tournamentId}_r${matchRound}_m${matchIndex}`,
+      tournamentId,
+      leagueId,
+      round: matchRound,
+      date: dateStr,
+      time: times[(matchIndex - 1) % times.length],
+      homeTeamId: homeTeam.id,
+      awayTeamId: awayTeam.id,
+      homeScore,
+      awayScore,
+      status,
+      incidents: [],
+      isClassic,
+      tvChannel: tvs[(matchIndex - 1) % tvs.length]
+    });
+  }
+
+  const distinctRounds = Array.from(new Set(matches.map(m => m.round))).length;
+
+  return {
+    success: matches.length > 0,
+    totalRounds: distinctRounds,
+    totalMatches: matches.length,
+    matches,
+    unmappedLines,
+    warnings
   };
 }

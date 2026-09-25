@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLeague } from '../../context/LeagueContext';
-import { League } from '../../types/league';
+import { League, Tournament } from '../../types/league';
 import { Team } from '../../types/team';
 import { TeamShield } from '../common/TeamShield';
 import { TeamEditModal } from './TeamEditModal';
-import { buildCustomLeague } from '../../engine/fixtureGenerator';
+import { buildCustomLeague, parseGesligaFixture, ParseFixtureResult } from '../../engine/fixtureGenerator';
+import { compressImageFile } from '../../utils/imageCompressor';
 import { 
   Trophy, 
   X, 
@@ -16,7 +17,10 @@ import {
   Settings, 
   Flame,
   Plus,
-  Trash2
+  Trash2,
+  Upload,
+  FileSpreadsheet,
+  AlertTriangle
 } from 'lucide-react';
 
 const POPULAR_COUNTRIES = [
@@ -56,13 +60,21 @@ export const EditLeagueModal: React.FC = () => {
   // Estados locales para la liga
   const [leagueName, setLeagueName] = useState('');
   const [country, setCountry] = useState('España');
+  const [isCustomCountry, setIsCustomCountry] = useState(false);
+  const [customCountryName, setCustomCountryName] = useState('');
   const [flag, setFlag] = useState('🏆');
   const [seasonYear, setSeasonYear] = useState(globalYear || '1974');
   const [leagueLogo, setLeagueLogo] = useState('');
+  const logoFileInputRef = useRef<HTMLInputElement>(null);
 
   // Estado para el modal de pegado rápido de nombres
   const [showQuickPaste, setShowQuickPaste] = useState(false);
   const [quickPasteText, setQuickPasteText] = useState('');
+
+  // Estados para Importador de Gesliga / Texto
+  const [showGesligaModal, setShowGesligaModal] = useState(false);
+  const [gesligaText, setGesligaText] = useState('');
+  const [gesligaResult, setGesligaResult] = useState<ParseFixtureResult | null>(null);
 
   // Equipo seleccionado para abrir su panel individual de gestión
   const [selectedTeamForEdit, setSelectedTeamForEdit] = useState<Team | null>(null);
@@ -71,14 +83,50 @@ export const EditLeagueModal: React.FC = () => {
   useEffect(() => {
     if (currentLeague) {
       setLeagueName(currentLeague.name);
-      setCountry(currentLeague.country);
+      const isKnown = POPULAR_COUNTRIES.some(c => c.name === currentLeague.country);
+      if (isKnown) {
+        setCountry(currentLeague.country);
+        setIsCustomCountry(false);
+        setCustomCountryName('');
+      } else {
+        setCountry('__custom__');
+        setIsCustomCountry(true);
+        setCustomCountryName(currentLeague.country);
+      }
       setFlag(currentLeague.flag);
       setSeasonYear(currentLeague.seasonYear || globalYear || '1974');
       setLeagueLogo(currentLeague.logo || '');
+      setGesligaText('');
+      setGesligaResult(null);
     }
-  }, [currentLeague]);
+  }, [currentLeague, globalYear]);
 
   if (!showEditLeagueModal || !currentLeague) return null;
+
+  // Manejar cambio de país
+  const handleCountryChange = (selectedVal: string) => {
+    if (selectedVal === '__custom__') {
+      setIsCustomCountry(true);
+      setCountry('__custom__');
+    } else {
+      setIsCustomCountry(false);
+      setCountry(selectedVal);
+      const found = POPULAR_COUNTRIES.find(c => c.name === selectedVal);
+      if (found) setFlag(found.flag);
+    }
+  };
+
+  // Subir y comprimir logo de la liga
+  const handleLogoFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const compressed = await compressImageFile(file, 256, 256, 0.85);
+      setLeagueLogo(compressed);
+    } catch {
+      alert('No se pudo procesar la imagen del logo.');
+    }
+  };
 
   // Guardar cambios generales de la liga
   const handleSaveLeagueGeneral = () => {
@@ -88,10 +136,14 @@ export const EditLeagueModal: React.FC = () => {
       return;
     }
 
+    const finalCountry = isCustomCountry 
+      ? (customCountryName.trim() || currentLeague.country)
+      : (country.trim() || currentLeague.country);
+
     const updated: League = {
       ...currentLeague,
       name: cleanName,
-      country: country.trim() || currentLeague.country,
+      country: finalCountry,
       flag: flag || currentLeague.flag,
       logo: leagueLogo.trim() || undefined,
       seasonYear: seasonYear.trim() || currentLeague.seasonYear,
@@ -103,14 +155,19 @@ export const EditLeagueModal: React.FC = () => {
 
   // Regenerar Fixture Completo
   const handleRegenerateFixture = () => {
-    if (!confirm('¿Deseas regenerar el fixture completo? Esto reiniciará todos los partidos y resultados de esta liga usando el algoritmo oficial Berger.')) {
+    if (!confirm('¿Deseas regenerar el fixture completo? Esto reiniciará todos los partidos y resultados de esta liga usando el algoritmo oficial Berger equilibrado (sin 3 partidos consecutivos de local/visitante).')) {
       return;
     }
 
+    const finalCountry = isCustomCountry 
+      ? (customCountryName.trim() || currentLeague.country)
+      : (country.trim() || currentLeague.country);
+
     const { league: brandNewLeague } = buildCustomLeague({
       leagueName: leagueName.trim() || currentLeague.name,
-      country: country.trim() || currentLeague.country,
+      country: finalCountry,
       flag: flag || currentLeague.flag,
+      logo: leagueLogo.trim() || currentLeague.logo,
       seasonYear: seasonYear.trim() || currentLeague.seasonYear,
       format: currentLeague.format,
       numTeams: currentLeague.teams.length,
@@ -133,7 +190,50 @@ export const EditLeagueModal: React.FC = () => {
     };
 
     updateLeague(replaced);
-    alert('Fixture regenerado exitosamente con alternancia equilibrada de local y visitante.');
+    alert('Fixture regenerado exitosamente con alternancia equilibrada oficial.');
+  };
+
+  // Analizar y previsualizar fixture de Gesliga
+  const handleAnalyzeGesliga = () => {
+    if (!gesligaText.trim()) {
+      alert('Por favor pega el texto del fixture antes de analizar.');
+      return;
+    }
+    const activeTournament = currentLeague.tournaments.find(t => t.id === currentLeague.activeTournamentId) || currentLeague.tournaments[0];
+    const res = parseGesligaFixture({
+      text: gesligaText,
+      teams: currentLeague.teams,
+      tournamentId: activeTournament.id,
+      leagueId: currentLeague.id,
+      startDateStr: activeTournament.matches[0]?.date || new Date().toISOString().split('T')[0]
+    });
+    setGesligaResult(res);
+  };
+
+  // Aplicar fixture importado de Gesliga
+  const handleApplyGesligaFixture = () => {
+    if (!gesligaResult || gesligaResult.matches.length === 0) {
+      alert('No se detectaron partidos válidos para aplicar.');
+      return;
+    }
+
+    const activeTournament = currentLeague.tournaments.find(t => t.id === currentLeague.activeTournamentId) || currentLeague.tournaments[0];
+    const updatedTournament: Tournament = {
+      ...activeTournament,
+      totalRounds: Math.max(activeTournament.totalRounds, gesligaResult.totalRounds),
+      matches: gesligaResult.matches
+    };
+
+    const updatedLeague: League = {
+      ...currentLeague,
+      tournaments: currentLeague.tournaments.map(t => t.id === updatedTournament.id ? updatedTournament : t)
+    };
+
+    updateLeague(updatedLeague);
+    setShowGesligaModal(false);
+    setGesligaText('');
+    setGesligaResult(null);
+    alert(`¡Fixture importado con éxito! Se registraron ${gesligaResult.totalMatches} partidos en ${gesligaResult.totalRounds} fechas.`);
   };
 
   // Pegado Rápido de Nombres de Clubes
@@ -264,6 +364,15 @@ export const EditLeagueModal: React.FC = () => {
               </span>
             </div>
 
+            {/* Hidden file input for logo */}
+            <input
+              type="file"
+              ref={logoFileInputRef}
+              accept="image/*"
+              onChange={handleLogoFileUpload}
+              className="hidden"
+            />
+
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
               <div>
                 <label className="text-[11px] text-gray-300 font-bold flex items-center space-x-1 mb-1">
@@ -271,12 +380,8 @@ export const EditLeagueModal: React.FC = () => {
                   <span>País:</span>
                 </label>
                 <select
-                  value={country}
-                  onChange={(e) => {
-                    setCountry(e.target.value);
-                    const found = POPULAR_COUNTRIES.find(c => c.name === e.target.value);
-                    if (found) setFlag(found.flag);
-                  }}
+                  value={isCustomCountry ? '__custom__' : country}
+                  onChange={(e) => handleCountryChange(e.target.value)}
                   className="w-full bg-[#081a10] border border-[#1f5434]/60 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#22c55e] transition-colors"
                 >
                   {POPULAR_COUNTRIES.map(c => (
@@ -284,6 +389,7 @@ export const EditLeagueModal: React.FC = () => {
                       {c.flag} {c.name}
                     </option>
                   ))}
+                  <option value="__custom__">🏳️ Escribir otro país personalizado...</option>
                 </select>
               </div>
 
@@ -313,25 +419,94 @@ export const EditLeagueModal: React.FC = () => {
 
               <div>
                 <label className="text-[11px] text-gray-300 font-bold block mb-1">
-                  Logo / Escudo Liga:
+                  Bandera / Emblema:
                 </label>
                 <div className="flex items-center space-x-1.5">
                   <input
                     type="text"
-                    value={leagueLogo}
-                    onChange={(e) => setLeagueLogo(e.target.value)}
-                    placeholder="URL o ruta PNG"
-                    className="flex-1 bg-[#081a10] border border-[#1f5434]/60 rounded-xl px-2.5 py-2 text-xs text-white focus:outline-none focus:border-[#22c55e] transition-colors"
-                    title="URL del logo o escudo oficial de la liga para la captura de X"
+                    value={flag}
+                    onChange={(e) => setFlag(e.target.value)}
+                    placeholder="Bandera"
+                    className="w-12 bg-[#081a10] border border-[#1f5434]/60 rounded-xl px-1.5 py-2 text-sm text-center text-white focus:outline-none focus:border-[#22c55e] transition-colors shrink-0"
+                    title="Emoji de bandera para el país"
                   />
-                  {leagueLogo && (
-                    <img 
-                      src={leagueLogo} 
-                      alt="Logo" 
-                      className="w-7 h-7 object-contain rounded-lg border border-[#1f5434] bg-black/40 shrink-0" 
-                    />
-                  )}
+                  <div className="flex items-center space-x-1 overflow-x-auto py-0.5">
+                    {['🏆', '⭐', '⚽', '🌍', '🏳️', '🚩'].map(f => (
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => setFlag(f)}
+                        className={`w-6 h-6 rounded-lg text-xs flex items-center justify-center transition-all shrink-0 ${
+                          flag === f
+                            ? 'bg-[#22c55e] text-black shadow-xs font-bold'
+                            : 'bg-[#081a10] text-gray-300 hover:bg-[#143823] border border-[#1f5434]/40'
+                        }`}
+                      >
+                        {f}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Input si eligió país personalizado */}
+            {isCustomCountry && (
+              <div className="pt-1 bg-[#081a10] border border-[#1f5434]/40 p-2.5 rounded-xl">
+                <label className="text-[11px] text-gray-300 font-bold block mb-1">
+                  Nombre del País Personalizado:
+                </label>
+                <input
+                  type="text"
+                  value={customCountryName}
+                  onChange={(e) => setCustomCountryName(e.target.value)}
+                  placeholder="Ej. Japón, Bélgica, País Vasco, etc."
+                  className="w-full sm:w-1/2 bg-[#040e08] border border-[#1f5434]/60 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#22c55e]"
+                />
+              </div>
+            )}
+
+            {/* Logo de la Liga con subida y preview */}
+            <div className="pt-1">
+              <label className="text-[11px] text-gray-300 font-bold block mb-1">
+                Logo / Escudo Oficial de la Liga:
+              </label>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => logoFileInputRef.current?.click()}
+                  className="px-3 py-1.5 bg-[#143d26] hover:bg-[#1a4f32] text-[#22c55e] border border-[#22c55e]/40 rounded-xl font-bold text-xs flex items-center space-x-1.5 transition-all shadow-xs shrink-0 cursor-pointer whitespace-nowrap"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Subir Imagen</span>
+                </button>
+
+                <input
+                  type="text"
+                  value={leagueLogo}
+                  onChange={(e) => setLeagueLogo(e.target.value)}
+                  placeholder="O pega URL de la imagen del logo..."
+                  className="flex-1 min-w-[200px] bg-[#081a10] border border-[#1f5434]/60 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#22c55e] transition-colors"
+                  title="URL del logo o escudo oficial de la liga para la captura de X"
+                />
+
+                {leagueLogo && (
+                  <div className="flex items-center space-x-1.5 bg-[#081a10] border border-[#1f5434] p-1 rounded-xl shrink-0">
+                    <img
+                      src={leagueLogo}
+                      alt="Logo"
+                      className="w-7 h-7 object-contain rounded-lg bg-black/40"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setLeagueLogo('')}
+                      className="p-1 text-gray-400 hover:text-red-400 rounded-lg hover:bg-white/10"
+                      title="Quitar logo"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -356,15 +531,15 @@ export const EditLeagueModal: React.FC = () => {
                   <span>2. Clubes de la Liga ({currentLeague.teams.length} equipos)</span>
                 </div>
                 <p className="text-[11px] text-gray-400 mt-0.5">
-                  Haz clic en "Gestionar Equipo" para entrar al panel del club y configurar su escudo, jugadores y clásico.
+                  Haz clic en "Gestionar Club" para entrar al panel del club y configurar su escudo, jugadores y clásico.
                 </p>
               </div>
 
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 shrink-0">
                 <button
                   type="button"
                   onClick={handleAddNewTeam}
-                  className="px-3.5 py-1.5 bg-[#22c55e] hover:bg-[#16a34a] text-black font-extrabold text-xs rounded-xl flex items-center space-x-1.5 transition-all shadow-sm cursor-pointer"
+                  className="px-3 py-1.5 bg-[#18442b] hover:bg-[#205939] text-[#22c55e] border border-[#22c55e]/40 font-extrabold text-xs rounded-xl flex items-center space-x-1.5 transition-all shadow-xs cursor-pointer whitespace-nowrap shrink-0"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Añadir Equipo</span>
@@ -373,7 +548,7 @@ export const EditLeagueModal: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowQuickPaste(!showQuickPaste)}
-                  className="px-3 py-1.5 bg-[#143d26] hover:bg-[#1a4f32] text-[#22c55e] font-bold text-xs rounded-xl flex items-center space-x-1.5 transition-all border border-[#245f3c]/60 shrink-0 shadow-xs cursor-pointer"
+                  className="px-3 py-1.5 bg-[#143d26] hover:bg-[#1a4f32] text-[#22c55e] font-bold text-xs rounded-xl flex items-center space-x-1.5 transition-all border border-[#245f3c]/60 shrink-0 shadow-xs cursor-pointer whitespace-nowrap"
                 >
                   <FileText className="w-3.5 h-3.5" />
                   <span>Pegar Lista de Clubes</span>
@@ -430,10 +605,10 @@ export const EditLeagueModal: React.FC = () => {
                 return (
                   <div 
                     key={team.id}
-                    className="bg-[#0a1e13]/85 border border-[#1f5434]/40 hover:border-[#22c55e]/50 rounded-2xl p-3.5 transition-all space-y-3 shadow-xs flex flex-col justify-between"
+                    className="bg-[#0a1e13]/85 border border-[#1f5434]/40 hover:border-[#22c55e]/50 rounded-2xl p-3.5 transition-all space-y-3 shadow-xs flex flex-col justify-between overflow-hidden min-w-0"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center space-x-3">
+                    <div className="flex items-start justify-between gap-2 min-w-0">
+                      <div className="flex items-center space-x-2.5 min-w-0 flex-1">
                         <span className="w-6 h-6 rounded-lg bg-[#143d26] text-[#22c55e] font-mono font-bold text-xs flex items-center justify-center shrink-0">
                           {idx + 1}
                         </span>
@@ -443,47 +618,50 @@ export const EditLeagueModal: React.FC = () => {
                           shield={team.shield}
                           primaryColor={team.primaryColor}
                           secondaryColor={team.secondaryColor}
-                          size={42}
+                          size={40}
                         />
 
-                        <div>
-                          <h4 className="font-extrabold text-white text-xs sm:text-sm leading-tight">
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-extrabold text-white text-xs sm:text-sm leading-tight truncate" title={team.name}>
                             {team.name}
                           </h4>
-                          <span className="text-[10px] text-[#8eb89c] block font-mono">
-                            En tabla y marcadores: <strong className="text-white">{team.shortName || team.name}</strong> • {team.stadium || 'Estadio'}
+                          <span className="text-[10px] text-[#8eb89c] block font-mono truncate">
+                            En tabla: <strong className="text-white">{team.shortName || team.name}</strong> • {team.stadium || 'Estadio'}
                           </span>
                         </div>
                       </div>
 
-                      {/* Badge de Clásico si tiene */}
+                      {/* Badge de Clásico si tiene con truncado y tooltip */}
                       {rival && (
-                        <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-lg font-bold flex items-center space-x-1 shrink-0">
-                          <Flame className="w-3 h-3 text-amber-400 fill-current" />
-                          <span>vs {rival.name}</span>
+                        <span 
+                          className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-lg font-bold flex items-center space-x-1 shrink-0 max-w-[130px] sm:max-w-[160px]"
+                          title={`Clásico vs ${rival.name}`}
+                        >
+                          <Flame className="w-3 h-3 text-amber-400 fill-current shrink-0" />
+                          <span className="truncate">vs {rival.shortName || rival.name}</span>
                         </span>
                       )}
                     </div>
 
                     {/* Fila de Estado y Botón de Gestión */}
                     <div className="pt-2 border-t border-[#1f5434]/30 flex items-center justify-between">
-                      <div className="flex items-center space-x-1.5 text-[11px] text-gray-300">
-                        <Trophy className="w-3.5 h-3.5 text-amber-400" />
-                        <span>
+                      <div className="flex items-center space-x-1.5 text-[11px] text-gray-300 min-w-0">
+                        <Trophy className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <span className="shrink-0">
                           <strong className="text-amber-300 font-extrabold">{team.palmares?.length || 0}</strong> títulos
                         </span>
                         {team.location && (
-                          <span className="text-[10px] text-gray-400 truncate max-w-[120px]">
+                          <span className="text-[10px] text-gray-400 truncate max-w-[90px] sm:max-w-[120px]" title={team.location}>
                             • {team.location}
                           </span>
                         )}
                       </div>
 
-                      <div className="flex items-center space-x-1.5">
+                      <div className="flex items-center space-x-1.5 shrink-0">
                         <button
                           type="button"
                           onClick={() => setSelectedTeamForEdit(team)}
-                          className="px-3.5 py-1.5 bg-[#18442b] hover:bg-[#205939] text-[#22c55e] hover:text-white border border-[#22c55e]/40 rounded-xl font-extrabold text-xs transition-all flex items-center space-x-1.5 shadow-xs cursor-pointer"
+                          className="px-3 py-1.5 bg-[#18442b] hover:bg-[#205939] text-[#22c55e] hover:text-white border border-[#22c55e]/40 rounded-xl font-extrabold text-xs transition-all flex items-center space-x-1.5 shadow-xs cursor-pointer whitespace-nowrap"
                         >
                           <Settings className="w-3.5 h-3.5" />
                           <span>Gestionar Club</span>
@@ -509,20 +687,32 @@ export const EditLeagueModal: React.FC = () => {
 
           {/* ACCIONES Y REGENERACIÓN */}
           <div className="pt-2 border-t border-[#1f5434]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={handleRegenerateFixture}
-              className="px-4 py-2 bg-[#143622] hover:bg-[#1a432b] text-amber-300 border border-amber-500/40 font-bold text-xs rounded-xl flex items-center space-x-1.5 transition-colors shadow-xs cursor-pointer"
-              title="Recrea todas las fechas del torneo desde cero con algoritmo Berger"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Regenerar Fixture Completo</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleRegenerateFixture}
+                className="px-3.5 py-2 bg-[#143622] hover:bg-[#1a432b] text-amber-300 border border-amber-500/40 font-bold text-xs rounded-xl flex items-center space-x-1.5 transition-colors shadow-xs cursor-pointer whitespace-nowrap shrink-0"
+                title="Recrea todas las fechas del torneo desde cero con algoritmo Berger balanceado"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Regenerar Fixture Berger</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowGesligaModal(true)}
+                className="px-3.5 py-2 bg-[#163e26] hover:bg-[#1f5434] text-[#22c55e] border border-[#22c55e]/40 font-bold text-xs rounded-xl flex items-center space-x-1.5 transition-colors shadow-xs cursor-pointer whitespace-nowrap shrink-0"
+                title="Importar fixture desde Gesliga o texto plano"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>Importar Fixture Gesliga</span>
+              </button>
+            </div>
 
             <button
               type="button"
               onClick={handleFinalizeAndClose}
-              className="px-6 py-2 bg-[#22c55e] hover:bg-[#16a34a] text-black font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center space-x-1.5 cursor-pointer"
+              className="px-6 py-2 bg-[#22c55e] hover:bg-[#16a34a] text-black font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0"
             >
               <CheckCircle2 className="w-4 h-4" />
               <span>Finalizar y Guardar Cambios</span>
@@ -531,6 +721,100 @@ export const EditLeagueModal: React.FC = () => {
         </div>
 
       </div>
+
+      {/* MODAL DE IMPORTACIÓN DE FIXTURE GESLIGA / TEXTO */}
+      {showGesligaModal && (
+        <div className="fixed inset-0 z-[60] bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-[#0b1f14] border border-[#22c55e]/60 w-full max-w-2xl rounded-3xl shadow-2xl p-5 space-y-4 text-white overflow-hidden animate-fadeIn">
+            <div className="flex items-center justify-between border-b border-[#1f5434]/50 pb-3">
+              <div className="flex items-center space-x-2 text-[#22c55e]">
+                <FileSpreadsheet className="w-5 h-5" />
+                <h3 className="font-extrabold text-sm uppercase tracking-wider text-white">
+                  Importar Fixture de Gesliga / Texto Plano
+                </h3>
+              </div>
+              <button
+                onClick={() => {
+                  setShowGesligaModal(false);
+                  setGesligaResult(null);
+                }}
+                className="p-1.5 text-gray-400 hover:text-white rounded-xl hover:bg-white/10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs text-gray-300">
+                Pega el fixture copiado de Gesliga o cualquier lista de partidos. Se reconocen fechas automáticas como <code className="text-[#22c55e] font-mono">Jornada 1</code>, <code className="text-[#22c55e] font-mono">Fecha 2</code> y formatos como <code className="text-[#22c55e] font-mono">Equipo A - Equipo B</code> o <code className="text-[#22c55e] font-mono">1 - 2</code>. Si incluyes resultados (ej. <code className="text-[#22c55e] font-mono">2 - 1</code>), se registrarán como partidos finalizados.
+              </p>
+              <textarea
+                rows={8}
+                value={gesligaText}
+                onChange={(e) => setGesligaText(e.target.value)}
+                placeholder={`Jornada 1\nFC Barcelona 2 - 1 Real Madrid\nAtlético de Madrid - Real Betis\n\nJornada 2\nReal Madrid - Atlético de Madrid\nReal Betis - FC Barcelona`}
+                className="w-full bg-[#040e08] border border-[#1f5434]/70 rounded-2xl p-3 text-xs font-mono text-white focus:outline-none focus:border-[#22c55e]"
+              />
+            </div>
+
+            {gesligaResult && (
+              <div className="bg-[#081a10] border border-[#1f5434] p-3 rounded-2xl space-y-2 text-xs">
+                <div className="flex items-center justify-between font-bold">
+                  <span className="text-[#22c55e]">
+                    ✓ Se detectaron {gesligaResult.totalMatches} partidos en {gesligaResult.totalRounds} jornadas.
+                  </span>
+                  <span className="text-gray-400 text-[11px] font-mono">
+                    {currentLeague.teams.length} clubes en liga
+                  </span>
+                </div>
+
+                {gesligaResult.warnings.length > 0 && (
+                  <div className="max-h-24 overflow-y-auto space-y-1 text-[11px] text-amber-300 bg-amber-950/20 p-2 rounded-xl border border-amber-500/30">
+                    <div className="flex items-center space-x-1 font-bold">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                      <span>Advertencias:</span>
+                    </div>
+                    {gesligaResult.warnings.map((w, i) => (
+                      <p key={i} className="pl-4 font-mono">{w}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end space-x-2 pt-2 border-t border-[#1f5434]/40">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowGesligaModal(false);
+                  setGesligaResult(null);
+                }}
+                className="px-4 py-2 bg-gray-800 text-gray-300 hover:text-white text-xs font-bold rounded-xl"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={handleAnalyzeGesliga}
+                className="px-4 py-2 bg-[#143d26] hover:bg-[#1a4f32] text-[#22c55e] border border-[#22c55e]/40 text-xs font-bold rounded-xl shadow-xs"
+              >
+                Analizar Fixture
+              </button>
+
+              {gesligaResult && gesligaResult.matches.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleApplyGesligaFixture}
+                  className="px-5 py-2 bg-[#22c55e] hover:bg-[#16a34a] text-black font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-md"
+                >
+                  Aplicar Fixture a la Liga
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* PANEL INDIVIDUAL DE EQUIPO (SI SELECCIONÓ UN EQUIPO PARA EDITAR) */}
       {selectedTeamForEdit && (

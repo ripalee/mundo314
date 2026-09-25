@@ -129,6 +129,13 @@ export const LeagueSectionView: React.FC = () => {
 
         <div className="flex items-center space-x-2">
           <span className="text-xs text-[#78a688] font-mono font-bold flex items-center space-x-1.5">
+            {currentLeague.logo && (
+              <img 
+                src={currentLeague.logo} 
+                alt={currentLeague.name} 
+                className="w-5 h-5 object-contain rounded shrink-0" 
+              />
+            )}
             <span>{currentLeague.flag}</span>
             <span className="text-white uppercase">{currentLeague.country}:</span>
             <span>{currentLeague.name}</span>
