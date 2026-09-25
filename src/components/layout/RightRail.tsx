@@ -40,9 +40,9 @@ export const RightRail: React.FC = () => {
                 <div key={row.teamId} className="px-3 py-1.5 flex items-center justify-between hover:bg-[#16422a]/60 transition-colors">
                   <div className="flex items-center space-x-2 truncate">
                     <span className="font-mono text-[10px] text-gray-400 w-3">{row.position}</span>
-                    <TeamShield name={row.teamName} size={15} />
+                    <TeamShield name={row.teamShortName || row.teamName} shield={row.shield} size={15} />
                     <span className="text-gray-200 truncate max-w-[110px] text-[11px] font-medium">
-                      {row.teamName}
+                      {row.teamShortName || row.teamName}
                     </span>
                   </div>
 
@@ -108,7 +108,7 @@ export const RightRail: React.FC = () => {
                         {mgr.name}
                       </span>
                       <span className="text-[10px] text-gray-400 block truncate max-w-[120px]">
-                        {team?.name || 'Club'}
+                        {team?.shortName || team?.name || 'Club'}
                       </span>
                     </div>
                   </div>

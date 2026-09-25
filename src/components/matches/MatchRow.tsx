@@ -65,10 +65,10 @@ export const MatchRow: React.FC<MatchRowProps> = ({ match }) => {
             <span className={`text-xs sm:text-[13px] truncate ${
               isHomeWinner ? 'font-bold text-white' : isAwayWinner ? 'text-[#8cb89d] font-normal' : 'text-gray-100 font-medium'
             }`}>
-              {homeTeam?.name || match.homeTeamId}
+              {homeTeam?.shortName || homeTeam?.name || match.homeTeamId}
             </span>
             <div className="flex-shrink-0">
-              <TeamShield team={homeTeam} name={homeTeam?.name} size={22} />
+              <TeamShield team={homeTeam} name={homeTeam?.shortName || homeTeam?.name} size={22} />
             </div>
           </div>
 
@@ -88,12 +88,12 @@ export const MatchRow: React.FC<MatchRowProps> = ({ match }) => {
           {/* Equipo Visitante */}
           <div className="flex items-center justify-start space-x-1.5 sm:space-x-2 text-left overflow-hidden min-w-0">
             <div className="flex-shrink-0">
-              <TeamShield team={awayTeam} name={awayTeam?.name} size={22} />
+              <TeamShield team={awayTeam} name={awayTeam?.shortName || awayTeam?.name} size={22} />
             </div>
             <span className={`text-xs sm:text-[13px] truncate ${
               isAwayWinner ? 'font-bold text-white' : isHomeWinner ? 'text-[#8cb89d] font-normal' : 'text-gray-100 font-medium'
             }`}>
-              {awayTeam?.name || match.awayTeamId}
+              {awayTeam?.shortName || awayTeam?.name || match.awayTeamId}
             </span>
           </div>
         </div>
@@ -101,9 +101,11 @@ export const MatchRow: React.FC<MatchRowProps> = ({ match }) => {
         {/* Columna Derecha: Canal de TV / Indicador Simétrico y Clásico */}
         <div className="w-16 sm:w-20 flex-shrink-0 text-center flex flex-col items-center justify-center space-y-0.5">
           {match.isClassic && (
-            <span className="text-[8px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded-md font-black uppercase tracking-wider flex items-center space-x-0.5 shadow-xs">
-              <Flame className="w-2.5 h-2.5 fill-current text-amber-400" />
-              <span>CLÁSICO</span>
+            <span 
+              className="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded-md flex items-center justify-center shadow-xs"
+              title="Partido Clásico"
+            >
+              <Flame className="w-3 h-3 fill-current text-amber-400" />
             </span>
           )}
           {match.tvChannel ? (

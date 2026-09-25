@@ -451,7 +451,7 @@ export const EditLeagueModal: React.FC = () => {
                             {team.name}
                           </h4>
                           <span className="text-[10px] text-[#8eb89c] block font-mono">
-                            En tabla: <strong className="text-white">{team.shortName || team.name}</strong> • {team.stadium || 'Estadio'}
+                            En tabla y marcadores: <strong className="text-white">{team.shortName || team.name}</strong> • {team.stadium || 'Estadio'}
                           </span>
                         </div>
                       </div>

@@ -72,7 +72,7 @@ export const TeamProfileModal: React.FC<TeamProfileModalProps> = ({
                 )}
 
                 <span className="text-[10px] font-semibold px-2 py-0.5 bg-[#081a10] text-gray-400 border border-[#1f5434]/50 rounded-lg font-mono">
-                  En tabla: {team.shortName || team.name}
+                  En tabla y marcadores: {team.shortName || team.name}
                 </span>
               </div>
             </div>

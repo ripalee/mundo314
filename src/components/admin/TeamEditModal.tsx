@@ -243,7 +243,7 @@ export const TeamEditModal: React.FC<TeamEditModalProps> = ({
 
                   <div>
                     <label className="text-[11px] text-gray-300 font-bold block mb-1">
-                      Nombre Reducido en Tabla:
+                      Nombre Reducido en Tabla y Marcadores:
                     </label>
                     <input
                       type="text"
@@ -253,7 +253,7 @@ export const TeamEditModal: React.FC<TeamEditModalProps> = ({
                       placeholder="Ej. River Club"
                     />
                     <span className="text-[10px] text-gray-400 block mt-0.5">
-                      Aparece en la tabla de posiciones y marcadores
+                      Aparece en la página principal, tabla de posiciones y marcadores
                     </span>
                   </div>
                 </div>

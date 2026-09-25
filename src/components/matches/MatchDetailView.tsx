@@ -361,8 +361,11 @@ export const MatchDetailView: React.FC = () => {
             </div>
 
             {match.isClassic && (
-              <span className="mt-2 text-[9px] sm:text-[10px] font-black px-2 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded-lg uppercase tracking-wider shadow-xs">
-                Clásico
+              <span 
+                className="mt-2 px-2 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded-lg shadow-xs flex items-center justify-center"
+                title="Partido Clásico"
+              >
+                <Flame className="w-3.5 h-3.5 fill-current text-amber-400" />
               </span>
             )}
           </div>

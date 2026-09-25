@@ -493,13 +493,13 @@ export const LeagueSectionView: React.FC = () => {
                             {/* Equipo Local */}
                             <div className="flex items-center justify-between text-xs">
                               <div className="flex items-center space-x-1.5 truncate pr-2">
-                                <TeamShield team={homeTeam} name={homeTeam?.name} size={16} />
+                                <TeamShield team={homeTeam} name={homeTeam?.shortName || homeTeam?.name} size={16} />
                                 <span className={`truncate font-semibold ${
                                   hasScore && homeScore > awayScore 
                                     ? 'text-white font-bold' 
                                     : 'text-gray-200'
                                 }`}>
-                                  {homeTeam?.name || match.homeTeamId}
+                                  {homeTeam?.shortName || homeTeam?.name || match.homeTeamId}
                                 </span>
                               </div>
                               <span className="font-mono font-bold text-white text-xs w-4 text-right shrink-0">
@@ -510,13 +510,13 @@ export const LeagueSectionView: React.FC = () => {
                             {/* Equipo Visitante */}
                             <div className="flex items-center justify-between text-xs">
                               <div className="flex items-center space-x-1.5 truncate pr-2">
-                                <TeamShield team={awayTeam} name={awayTeam?.name} size={16} />
+                                <TeamShield team={awayTeam} name={awayTeam?.shortName || awayTeam?.name} size={16} />
                                 <span className={`truncate font-semibold ${
                                   hasScore && awayScore > homeScore 
                                     ? 'text-white font-bold' 
                                     : 'text-gray-200'
                                 }`}>
-                                  {awayTeam?.name || match.awayTeamId}
+                                  {awayTeam?.shortName || awayTeam?.name || match.awayTeamId}
                                 </span>
                               </div>
                               <span className="font-mono font-bold text-white text-xs w-4 text-right shrink-0">
